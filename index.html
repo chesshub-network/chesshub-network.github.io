@@ -1,0 +1,1362 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ChessHub</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://unpkg.com/lucide@latest"></script>
+<script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap');
+
+:root {
+    --bg-dark: #050505;
+    --sidebar-bg: rgba(15, 15, 15, 0.75);
+    --accent-glow: rgba(79, 70, 229, 0.15);
+    --card-border: rgba(255, 255, 255, 0.08);
+    --fluid-ease: cubic-bezier(0.4, 0, 0.2, 1);
+
+    --collapsed-width: 81px;
+    --expanded-width: 241px;
+    --item-height: 48px;
+    --side-padding: 16px; 
+    --grid-gap: 20px;
+
+    --color-active: #818cf8;
+    --color-open: #10b981;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+/* Hide scrollbar for Chrome, Safari and Opera */
+*::-webkit-scrollbar {
+    display: none;
+}
+
+/* Hide scrollbar for IE, Edge and Firefox */
+* {
+    -ms-overflow-style: none;  /* IE and Edge */
+    scrollbar-width: none;  /* Firefox */
+}
+
+body {
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    background-color: var(--bg-dark);
+    color: #e2e8f0;
+    margin: 0;
+    overflow: hidden;
+    display: flex;
+}
+
+.gradient-bg {
+    background: 
+        radial-gradient(circle at 0% 0%, var(--accent-glow) 0%, transparent 40%),
+        radial-gradient(circle at 100% 100%, rgba(236, 72, 153, 0.05) 0%, transparent 40%),
+        var(--bg-dark);
+    width: 100vw;
+    height: 100vh;
+    display: flex;
+}
+
+/* Auth Overlay Styles */
+#auth-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 2000;
+    background: var(--bg-dark);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: opacity 0.6s var(--fluid-ease), visibility 0.6s;
+}
+
+.auth-card {
+    width: 100%;
+    max-width: 420px;
+    padding: 48px;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid var(--card-border);
+    backdrop-filter: blur(40px);
+    border-radius: 40px;
+    box-shadow: 0 40px 100px -20px rgba(0,0,0,0.7);
+}
+
+.auth-input {
+    width: 100%;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--card-border);
+    border-radius: 16px;
+    padding: 14px 20px;
+    color: white;
+    font-size: 0.95rem;
+    margin-bottom: 12px;
+    outline: none;
+    transition: all 0.3s;
+}
+
+.auth-input:focus {
+    border-color: rgba(129, 140, 248, 0.5);
+    background: rgba(255, 255, 255, 0.08);
+    box-shadow: 0 0 20px -10px rgba(129, 140, 248, 0.5);
+}
+
+.auth-btn {
+    width: 100%;
+    background: #6366f1;
+    color: white;
+    font-weight: 700;
+    padding: 16px;
+    border-radius: 16px;
+    margin-top: 8px;
+    transition: transform 0.2s, background 0.3s;
+}
+
+.auth-btn:hover { background: #4f46e5; transform: translateY(-1px); }
+
+/* Sidebar */
+#sidebar {
+    width: var(--collapsed-width);
+    height: 100vh;
+    background: var(--sidebar-bg);
+    backdrop-filter: blur(24px);
+    border-right: 1px solid var(--card-border);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    z-index: 100;
+    transition: width 0.4s var(--fluid-ease);
+    flex-shrink: 0;
+}
+
+#sidebar.expanded { width: var(--expanded-width); }
+
+.brand-icon {
+    height: 80px;
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #64748b;
+    cursor: pointer;
+    flex-shrink: 0;
+}
+
+.nav-item {
+    display: flex;
+    align-items: center;
+    height: var(--item-height);
+    margin: 6px 0;
+    width: var(--item-height);
+    border-radius: 14px;
+    color: #94a3b8;
+    transition: background 0.3s ease, color 0.3s ease, width 0.4s var(--fluid-ease);
+    cursor: pointer;
+    overflow: hidden;
+    flex-shrink: 0;
+    position: relative;
+    border: 1px solid transparent;
+    margin-left: var(--side-padding);
+}
+
+#sidebar.expanded .nav-item { width: calc(100% - var(--side-padding) * 2); }
+
+.nav-item.active { background: rgba(79, 70, 229, 0.1); color: #818cf8; border: 1px solid rgba(79, 70, 229, 0.2); }
+.nav-item:hover { background: rgba(255, 255, 255, 0.05); color: #ffffff; }
+
+.icon-box {
+    width: var(--item-height);
+    min-width: var(--item-height);
+    height: var(--item-height);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.icon-box svg {
+    transform: translateX(-1px);
+    transition: transform 0.2s var(--fluid-ease);
+}
+
+.nav-item:hover svg {
+    transform: translateX(-1px) scale(1.15);
+}
+
+.label-text {
+    opacity: 0;
+    transform: translateX(-10px);
+    transition: opacity 0.3s var(--fluid-ease), transform 0.3s var(--fluid-ease);
+    font-weight: 600;
+    font-size: 0.95rem;
+    white-space: nowrap;
+    margin-left: 10px;
+}
+#sidebar.expanded .label-text { opacity: 1; transform: translateX(0); }
+
+.bottom-nav .nav-item { 
+    margin: 8px 0; 
+    margin-left: var(--side-padding);
+}
+
+#main-viewport { 
+    flex: 1; 
+    padding: 40px; 
+    overflow-y: auto; 
+    overflow-x: hidden; 
+    position: relative; 
+}
+
+.section-header { 
+    display: flex; 
+    align-items: flex-end; 
+    justify-content: space-between; 
+    margin: 40px 0 12px 0; 
+}
+.section-title { font-size: 1.875rem; font-weight: 800; color: white; }
+
+.carousel-container { 
+    width: 100%; 
+    overflow-x: auto; 
+    scroll-behavior: smooth; 
+    padding: 20px 0; 
+    margin-top: -12px;
+    scroll-snap-type: x mandatory; 
+}
+
+.games-grid { 
+    display: flex; 
+    gap: var(--grid-gap); 
+    width: max-content; 
+    min-width: 100%;
+    padding-right: 0; 
+}
+
+.game-card {
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid var(--card-border);
+    border-radius: 24px;
+    padding: 24px;
+    transition: background 0.4s, border-color 0.4s, transform 0.4s var(--fluid-ease);
+    cursor: pointer;
+    position: relative;
+    overflow: hidden;
+    flex-shrink: 0;
+    width: calc((100vw - var(--collapsed-width) - 80px - (var(--grid-gap) * 2)) / 3);
+    z-index: 1;
+    scroll-snap-align: start;
+    scroll-snap-stop: always;
+    display: flex;
+    flex-direction: column;
+}
+
+.game-card:last-child {
+    scroll-snap-align: start end;
+}
+
+#sidebar.expanded ~ #main-viewport .game-card { 
+    width: calc((100vw - var(--expanded-width) - 80px - (var(--grid-gap) * 2)) / 3); 
+}
+
+.game-card:hover {
+    background: rgba(255, 255, 255, 0.04);
+    border-color: rgba(79, 70, 229, 0.3);
+    transform: translateY(-8px);
+    box-shadow: 0 20px 40px -20px rgba(0, 0, 0, 0.6), 0 0 20px -5px rgba(79, 70, 229, 0.1);
+    z-index: 10;
+}
+
+@media (min-width: 2000px) {
+    .game-card { width: calc((100vw - var(--collapsed-width) - 80px - (var(--grid-gap) * 3)) / 4); }
+    #sidebar.expanded ~ #main-viewport .game-card { width: calc((100vw - var(--expanded-width) - 80px - (var(--grid-gap) * 3)) / 4); }
+}
+
+@media (max-width: 1000px) { 
+    .game-card { width: calc(100vw - 120px); } 
+}
+
+.nav-btn { 
+    width: 40px; 
+    height: 40px; 
+    border-radius: 12px; 
+    background: rgba(255,255,255,0.03); 
+    border: 1px solid var(--card-border); 
+    display: flex; 
+    align-items: center; 
+    justify-content: center; 
+    color: #64748b; 
+    transition: all 0.3s var(--fluid-ease); 
+}
+
+.nav-btn:not(:disabled):hover { 
+    background: rgba(255,255,255,0.08); 
+    color: white; 
+}
+
+.nav-btn:disabled {
+    opacity: 0.15;
+    cursor: default;
+    filter: grayscale(1);
+}
+
+.btn-active:not(:disabled) { color: var(--color-active); border-color: rgba(129, 140, 248, 0.3); }
+.btn-open:not(:disabled) { color: var(--color-open); border-color: rgba(16, 185, 129, 0.3); }
+
+.player-info { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; position: relative; z-index: 1; }
+.player-tag { display: flex; align-items: center; gap: 10px; font-weight: 600; font-size: 0.95rem; }
+.elo-badge { font-size: 0.75rem; color: #64748b; font-family: monospace; background: rgba(255,255,255,0.05); padding: 2px 8px; border-radius: 6px; }
+
+.action-btn-area {
+    margin-top: 16px;
+    margin-bottom: 16px;
+    display: flex;
+    gap: 8px;
+}
+
+.card-action-btn {
+    flex: 1;
+    padding: 10px;
+    border-radius: 12px;
+    font-size: 0.85rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    transition: all 0.3s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+
+.btn-spectate {
+    background: rgba(99, 102, 241, 0.1);
+    border: 1px solid rgba(99, 102, 241, 0.2);
+    color: #818cf8;
+}
+.btn-spectate:hover {
+    background: #6366f1;
+    color: white;
+}
+
+.btn-join {
+    background: rgba(16, 185, 129, 0.1);
+    border: 1px solid rgba(16, 185, 129, 0.2);
+    color: #10b981;
+}
+.btn-join:hover {
+    background: #10b981;
+    color: white;
+}
+
+.status-footer { display: flex; align-items: center; justify-content: space-between; padding-top: 16px; border-top: 1px solid rgba(255,255,255,0.05); font-size: 0.85rem; color: #64748b; position: relative; z-index: 1; margin-top: auto;}
+.live-dot { width: 8px; height: 8px; background: #ef4444; border-radius: 50%; display: inline-block; margin-right: 6px; animation: pulse 1.5s infinite; }
+.open-dot { width: 8px; height: 8px; background: #10b981; border-radius: 50%; display: inline-block; margin-right: 6px; }
+@keyframes pulse { 0% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.4); opacity: 0.5; } 100% { transform: scale(1); opacity: 1; } }
+.empty-state { padding: 40px; text-align: center; color: #475569; border: 1px dashed var(--card-border); border-radius: 20px; width: 100%; margin: 20px 0; }
+
+/* Leaderboard Styles */
+#leaderboard {
+    width: 100%;
+}
+.leaderboard-row {
+    background: rgba(255,255,255,0.02);
+    border: 1px solid var(--card-border);
+    border-radius: 16px;
+    padding: 16px 24px;
+    display: flex;
+    align-items: center;
+    margin-bottom: 8px;
+    transition: 0.3s;
+    width: 100%;
+}
+.leaderboard-row:hover { background: rgba(255,255,255,0.04); transform: translateX(4px); border-color: rgba(251, 191, 36, 0.2); }
+.rank-badge { width: 32px; font-weight: 900; font-style: italic; color: #64748b; }
+.rank-1 { color: #fbbf24; text-shadow: 0 0 10px rgba(251, 191, 36, 0.3); }
+.rank-2 { color: #94a3b8; }
+.rank-3 { color: #b45309; }
+
+[hidden] { display: none !important; }
+
+/* Admin Styles */
+.admin-card { background: rgba(255, 60, 60, 0.05); border: 1px solid rgba(255, 60, 60, 0.2); }
+.admin-badge { background: #ef4444; color: white; font-size: 10px; padding: 2px 6px; border-radius: 4px; font-weight: 900; }
+
+/* Table UI */
+#adminUsersTable { width: 100%; border-collapse: separate; border-spacing: 0 8px; }
+#adminUsersTable th { text-align: left; padding: 12px 24px; color: #64748b; font-size: 12px; text-transform: uppercase; font-weight: 800; letter-spacing: 0.05em; }
+#adminUsersTable tr { background: rgba(255,255,255,0.02); }
+#adminUsersTable td { padding: 16px 24px; border-top: 1px solid var(--card-border); border-bottom: 1px solid var(--card-border); }
+#adminUsersTable td:first-child { border-left: 1px solid var(--card-border); border-radius: 16px 0 0 16px; }
+#adminUsersTable td:last-child { border-right: 1px solid var(--card-border); border-radius: 0 16px 16px 0; }
+.admin-input { background: rgba(255,255,255,0.05); border: 1px solid var(--card-border); border-radius: 8px; padding: 6px 12px; color: white; outline: none; transition: 0.3s; }
+.admin-input:focus { border-color: #ef4444; }
+.delete-btn { background: #ef4444; color: white; padding: 6px 12px; border-radius: 8px; font-size: 12px; font-weight: 700; border-radius: 8px; transition: 0.3s; }
+.delete-btn:hover { background: #dc2626; transform: scale(1.05); }
+
+/* Create Game Modal Styles */
+#create-game-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 3000;
+    background: rgba(0, 0, 0, 0.85);
+    backdrop-filter: blur(10px);
+    display: none;
+    align-items: center;
+    justify-content: center;
+}
+
+.modal-content {
+    width: 100%;
+    max-width: 500px;
+    background: #1a1a1a;
+    border: 1px solid var(--card-border);
+    border-radius: 32px;
+    padding: 32px;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+}
+
+.slider-container { margin-bottom: 24px; }
+.slider-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+.slider-label { color: #94a3b8; font-weight: 600; font-size: 0.9rem; }
+.slider-value-box { 
+    background: #2d2d2d; 
+    border-radius: 8px; 
+    padding: 4px 12px; 
+    color: white; 
+    font-weight: 800; 
+    font-family: monospace;
+    min-width: 50px;
+    text-align: center;
+}
+
+input[type="range"] {
+    width: 100%;
+    height: 6px;
+    background: #333;
+    border-radius: 5px;
+    outline: none;
+    -webkit-appearance: none;
+}
+
+input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 20px;
+    height: 20px;
+    background: #6366f1;
+    border-radius: 50%;
+    cursor: pointer;
+    transition: transform 0.1s;
+}
+
+input[type="range"]::-webkit-slider-thumb:hover { transform: scale(1.2); }
+
+.preset-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 8px;
+    margin: 24px 0;
+}
+
+.preset-btn {
+    background: rgba(255,255,255,0.05);
+    border: 1px solid var(--card-border);
+    border-radius: 8px;
+    padding: 8px 0;
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: #64748b;
+    transition: all 0.2s;
+}
+
+.preset-btn:hover { background: rgba(255,255,255,0.1); color: white; }
+.preset-btn.selected { background: #84cc16; color: white; border-color: #84cc16; }
+
+.create-action-btn {
+    width: 100%;
+    background: #2d2d2d;
+    color: white;
+    padding: 16px;
+    border-radius: 12px;
+    font-weight: 800;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    transition: all 0.3s;
+}
+
+.create-action-btn:hover { background: #3d3d3d; }
+.create-action-btn svg { color: #84cc16; }
+
+</style>
+</head>
+<body class="gradient-bg">
+
+<!-- Authentication Overlay -->
+<div id="auth-overlay">
+    <div class="auth-card">
+        <div class="flex justify-center mb-10">
+            <div class="w-16 h-16 bg-indigo-500/10 rounded-2xl flex items-center justify-center border border-indigo-500/20">
+                <i data-lucide="shield-check" class="w-8 h-8 text-indigo-400"></i>
+            </div>
+        </div>
+
+        <!-- Login View -->
+        <div id="login-section">
+            <h2 class="text-2xl font-extrabold text-white text-center mb-2">Welcome Back</h2>
+            <p class="text-slate-500 text-center text-sm mb-8">Sign in to your account</p>
+            <form id="loginForm">
+                <input type="text" id="loginUsername" class="auth-input" placeholder="Username" required />
+                <input type="password" id="loginPassword" class="auth-input" placeholder="Password" required />
+                <button type="submit" class="auth-btn">Login</button>
+            </form>
+            <div id="loginMessage" class="mt-4 text-center text-sm font-medium text-slate-400"></div>
+            <p class="mt-6 text-center text-sm text-slate-500">
+                No account? <button onclick="toggleAuthView('register')" class="text-indigo-400 font-bold hover:underline">Register</button>
+            </p>
+        </div>
+
+        <!-- Register View -->
+        <div id="register-section" hidden>
+            <h2 class="text-2xl font-extrabold text-white text-center mb-2">Join ChessHub</h2>
+            <p class="text-slate-500 text-center text-sm mb-8">Create your player profile</p>
+            <form id="registerForm">
+                <input type="text" id="username" class="auth-input" placeholder="Username" required />
+                <input type="password" id="password" class="auth-input" placeholder="Password" required />
+                <button type="submit" class="auth-btn">Register</button>
+            </form>
+            <div id="registerMessage" class="mt-4 text-center text-sm font-medium text-slate-400"></div>
+            <p class="mt-6 text-center text-sm text-slate-500">
+                Have an account? <button onclick="toggleAuthView('login')" class="text-indigo-400 font-bold hover:underline">Sign In</button>
+            </p>
+        </div>
+    </div>
+</div>
+
+<!-- Create Game Modal -->
+<div id="create-game-modal" onclick="if(event.target === this) closeCreateGameModal()">
+    <div class="modal-content" onclick="event.stopPropagation()">
+        <h2 class="text-xl font-extrabold text-white mb-8">Create New Game</h2>
+        
+        <div class="slider-container">
+            <div class="slider-header">
+                <span class="slider-label">Minutes per Player</span>
+                <input type="number" id="minutes-text" class="slider-value-box border-none outline-none w-16" value="10" min="1" max="60">
+            </div>
+            <input type="range" id="minutes-slider" min="1" max="60" value="10">
+        </div>
+
+        <div class="slider-container">
+            <div class="slider-header">
+                <span class="slider-label">Increment in Seconds</span>
+                <input type="number" id="increment-text" class="slider-value-box border-none outline-none w-16" value="0" min="0" max="60">
+            </div>
+            <input type="range" id="increment-slider" min="0" max="60" value="0">
+        </div>
+
+        <div class="preset-grid" id="preset-container">
+            <!-- Presets added by JS -->
+        </div>
+
+        <button class="create-action-btn mt-6" onclick="submitCreateGame()">
+            <i data-lucide="users" class="w-6 h-6"></i>
+            <span>Create Custom Game</span>
+        </button>
+    </div>
+</div>
+
+<aside id="sidebar">
+    <div class="brand-icon" onclick="toggleSidebar()">
+        <div class="icon-box"><i data-lucide="layout-grid" class="w-6 h-6"></i></div>
+    </div>
+    <nav class="mt-2 flex-1 nav-list">
+        <div class="nav-item active" onclick="switchView('home')">
+            <div class="icon-box"><i data-lucide="home" class="w-5 h-5 text-indigo-400"></i></div>
+            <span class="label-text">Home</span>
+        </div>
+        <div class="nav-item" onclick="openCreateGameModal()">
+            <div class="icon-box"><i data-lucide="plus-circle" class="w-5 h-5 text-emerald-400"></i></div>
+            <span class="label-text">Create a Game</span>
+        </div>
+        <div class="nav-item" onclick="switchView('leaderboard')">
+            <div class="icon-box"><i data-lucide="trophy" class="w-5 h-5 text-amber-400"></i></div>
+            <span class="label-text">Leaderboards</span>
+        </div>
+        <div class="nav-item">
+            <div class="icon-box"><i data-lucide="microscope" class="w-5 h-5 text-blue-400"></i></div>
+            <span class="label-text">Analysis</span>
+        </div>
+        <!-- Admin Section - Hidden by default -->
+        <div id="admin-nav-item" class="nav-item" onclick="switchView('admin')" hidden>
+            <div class="icon-box"><i data-lucide="shield-alert" class="w-5 h-5 text-rose-500"></i></div>
+            <span class="label-text">Admin Panel</span>
+        </div>
+    </nav>
+    <div class="bottom-nav mb-4">
+        <div class="nav-item">
+            <div class="icon-box"><i data-lucide="settings" class="w-5 h-5 text-slate-400"></i></div>
+            <span class="label-text">Settings</span>
+        </div>
+        <div class="nav-item" onclick="handleLogout()">
+            <div class="icon-box"><i data-lucide="log-out" class="w-5 h-5 text-rose-400"></i></div>
+            <span class="label-text">Logout</span>
+        </div>
+    </div>
+</aside>
+
+    <main id="main-viewport">
+        <!-- Home View -->
+        <div id="view-home">
+            <section>
+                <header class="section-header">
+                    <div>
+                        <h1 class="section-title">Active Games</h1>
+                        <p class="text-slate-500 mt-1">Live games currently in progress</p>
+                    </div>
+                    <div class="flex gap-2 mb-1">
+                        <button id="spectate-prev" class="nav-btn btn-active" onclick="scrollCarousel('spectate-scroll', -1)" disabled><i data-lucide="chevron-left" class="w-5 h-5"></i></button>
+                        <button id="spectate-next" class="nav-btn btn-active" onclick="scrollCarousel('spectate-scroll', 1)" disabled><i data-lucide="chevron-right" class="w-5 h-5"></i></button>
+                    </div>
+                </header>
+                <div id="spectate-scroll" class="carousel-container" 
+                    onmouseenter="setUpdateFreeze(true)" 
+                    onmouseleave="setUpdateFreeze(false)"
+                    onscroll="updateButtonStates('spectate-scroll', 'spectate-prev', 'spectate-next')">
+                    <div id="spectate-grid" class="games-grid">
+                        <div class="empty-state">Loading Games...</div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="mt-8">
+                <header class="section-header">
+                    <div>
+                        <h1 class="section-title">Open Games</h1>
+                        <p class="text-slate-500 mt-1">Waiting for players to join</p>
+                    </div>
+                    <div class="flex gap-2 mb-1">
+                        <button id="joinable-prev" class="nav-btn btn-open" onclick="scrollCarousel('joinable-scroll', -1)" disabled><i data-lucide="chevron-left" class="w-5 h-5"></i></button>
+                        <button id="joinable-next" class="nav-btn btn-open" onclick="scrollCarousel('joinable-scroll', 1)" disabled><i data-lucide="chevron-right" class="w-5 h-5"></i></button>
+                    </div>
+                </header>
+                <div id="joinable-scroll" class="carousel-container" 
+                    onmouseenter="setUpdateFreeze(true)" 
+                    onmouseleave="setUpdateFreeze(false)"
+                    onscroll="updateButtonStates('joinable-scroll', 'joinable-prev', 'joinable-next')">
+                    <div id="joinable-grid" class="games-grid">
+                        <div class="empty-state">Loading Games...</div>
+                    </div>
+                </div>
+            </section>
+        </div>
+
+        <!-- Leaderboard View -->
+        <div id="view-leaderboard" hidden>
+            <header class="mb-10">
+                <h1 class="text-4xl font-black text-white">Leaderboard</h1>
+                <p class="text-slate-500 mt-2">The top 10 chess players on ChessHub.</p>
+            </header>
+            <div id="leaderboard">
+                <!-- Leaderboard entries will be rendered here -->
+                <div class="empty-state">Loading global rankings...</div>
+            </div>
+        </div>
+
+        <!-- Admin View -->
+        <div id="view-admin" hidden>
+            <header class="mb-10">
+                <div class="flex items-center gap-3">
+                    <h1 class="text-4xl font-black text-white">Admin Panel</h1>
+                </div>
+                <p class="text-slate-500 mt-2">Manage and oversee user activity on the ChessHub platform.</p>
+            </header>
+
+            <section id="adminPanel">
+                <h2 class="text-xl font-bold text-white mb-6">User Management</h2>
+                <div class="overflow-x-auto">
+                    <table id="adminUsersTable">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Username</th>
+                                <th>ELO</th>
+                                <th>Locked</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- Admin user rows rendered here -->
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        </div>
+    </main>
+
+    <script>
+        lucide.createIcons();
+        const API_BASE = "http://et4zqkjzd4polpvm.myfritz.net:25566";
+
+        // --- AUTHENTICATION LOGIC ---
+
+        // --- AUTH HEADER ---
+                function authHeaders() {
+            const token = localStorage.getItem("token");
+            return {
+                "Authorization": "Bearer " + token,
+                "Content-Type": "application/json"
+            };
+        }
+
+        function toggleAuthView(view) {
+            document.getElementById('login-section').hidden = (view === 'register');
+            document.getElementById('register-section').hidden = (view === 'login');
+        }
+
+        document.getElementById("registerForm").addEventListener("submit", async (e)=>{
+            e.preventDefault();
+            const username = document.getElementById("username").value;
+            const password = document.getElementById("password").value;
+            const msg = document.getElementById("registerMessage");
+
+            try {
+                const res = await fetch(`${API_BASE}/api/register`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ username, password })
+                });
+
+                if(!res.ok){
+                    const errText = await res.text();
+                    msg.className = "mt-4 text-center text-sm font-medium text-rose-400";
+                    msg.innerText = "Error: " + errText;
+                    return;
+                }
+
+                const data = await res.json();
+                localStorage.setItem("token", data.token);
+                localStorage.setItem("username", username); 
+                msg.className = "mt-4 text-center text-sm font-medium text-emerald-400";
+                msg.innerText = "Account registered successfully!";
+                setTimeout(initApp, 800);
+            } catch(err){
+                msg.className = "mt-4 text-center text-sm font-medium text-rose-400";
+                msg.innerText = "Error: " + err.message;
+            }
+        });
+
+        document.getElementById("loginForm").addEventListener("submit", async (e) => {
+            e.preventDefault();
+            const username = document.getElementById("loginUsername").value;
+            const password = document.getElementById("loginPassword").value;
+            const msg = document.getElementById("loginMessage");
+
+            try {
+                const res = await fetch(`${API_BASE}/api/login`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ username, password })
+                });
+
+                if (!res.ok) {
+                    const errText = await res.text();
+                    msg.className = "mt-4 text-center text-sm font-medium text-rose-400";
+                    msg.innerText = "Error: " + errText;
+                    return;
+                }
+
+                const data = await res.json();
+                localStorage.setItem("token", data.token);
+                localStorage.setItem("username", username);
+                msg.className = "mt-4 text-center text-sm font-medium text-emerald-400";
+                msg.innerText = "Login successful!";
+
+                setTimeout(initApp, 800);
+            } catch (err) {
+                msg.className = "mt-4 text-center text-sm font-medium text-rose-400";
+                msg.innerText = "Error: " + err.message;
+            }
+        });
+
+        function handleLogout() {
+            localStorage.removeItem('token');
+            localStorage.removeItem('username');
+            location.reload();
+        }
+
+        function initApp() {
+            const token = localStorage.getItem('token');
+            if (!token) return;
+
+            const overlay = document.getElementById('auth-overlay');
+            overlay.style.opacity = '0';
+            overlay.style.pointerEvents = 'none';
+            setTimeout(() => overlay.style.visibility = 'hidden', 600);
+            
+            checkAdminStatus();
+            fetchHomepage(); 
+            fetchLeaderboard();
+            fetchAdminUsers();
+            setupCreateGameModal();
+        }
+
+        function checkAdminStatus() {
+            const username = localStorage.getItem("username");
+            const adminNav = document.getElementById('admin-nav-item');
+            const adminPanel = document.getElementById('adminPanel');
+            
+            if (username === "Admin") {
+                adminNav.hidden = false;
+                if(adminPanel) adminPanel.style.display = "block";
+            }
+        }
+
+        // --- DASHBOARD UI LOGIC ---
+
+        let isUpdateFrozen = false;
+
+        function switchView(view) {
+            const homeView = document.getElementById('view-home');
+            const adminView = document.getElementById('view-admin');
+            const leaderboardView = document.getElementById('view-leaderboard');
+            const navItems = document.querySelectorAll('.nav-list .nav-item');
+
+            navItems.forEach(item => item.classList.remove('active'));
+
+            homeView.hidden = (view !== 'home');
+            adminView.hidden = (view !== 'admin');
+            leaderboardView.hidden = (view !== 'leaderboard');
+
+            if (view === 'home') {
+                navItems[0].classList.add('active');
+            } else if (view === 'leaderboard') {
+                navItems[2].classList.add('active');
+                fetchLeaderboard();
+            } else if (view === 'admin') {
+                document.getElementById('admin-nav-item').classList.add('active');
+                fetchAdminUsers();
+            }
+            
+            setTimeout(() => {
+                updateButtonStates('spectate-scroll', 'spectate-prev', 'spectate-next');
+                updateButtonStates('joinable-scroll', 'joinable-prev', 'joinable-next');
+            }, 100);
+        }
+
+        function setUpdateFreeze(frozen) {
+            isUpdateFrozen = frozen;
+        }
+
+        function toggleSidebar() {
+            document.getElementById('sidebar').classList.toggle('expanded');
+            setTimeout(() => {
+                updateButtonStates('spectate-scroll', 'spectate-prev', 'spectate-next');
+                updateButtonStates('joinable-scroll', 'joinable-prev', 'joinable-next');
+            }, 450);
+        }
+
+        function updateButtonStates(containerId, prevId, nextId) {
+            const el = document.getElementById(containerId);
+            const prev = document.getElementById(prevId);
+            const next = document.getElementById(nextId);
+            if (!el || !prev || !next) return;
+            const buffer = 5; 
+            const maxScroll = el.scrollWidth - el.clientWidth;
+            prev.disabled = el.scrollLeft <= buffer;
+            next.disabled = el.scrollLeft >= maxScroll - buffer;
+        }
+
+        function scrollCarousel(id, direction) {
+            const el = document.getElementById(id);
+            const card = el.querySelector('.game-card');
+            if (!card) return;
+            const stepSize = card.offsetWidth + 20;
+            const targetScroll = direction === 1 ? 
+                Math.ceil((el.scrollLeft + 1) / stepSize) * stepSize : 
+                Math.floor((el.scrollLeft - 1) / stepSize) * stepSize;
+            el.scrollTo({ left: Math.max(0, Math.min(targetScroll, el.scrollWidth - el.clientWidth)), behavior: 'smooth' });
+        }
+
+        const socket = io(API_BASE);
+
+        async function fetchHomepage() {
+            const token = localStorage.getItem("token");
+            if (!token || isUpdateFrozen) return;
+
+            try {
+                const response = await fetch(`${API_BASE}/api/homepage`, {
+                    headers: authHeaders()
+                });
+
+                if (response.status === 401) {
+                    handleLogout();
+                    return;
+                }
+
+                if (!response.ok) return;
+
+                const data = await response.json();
+
+                // 🔥 IMPORTANT: data is an OBJECT, not an array
+                const spectateGames = Array.isArray(data.spectate) ? data.spectate : [];
+                const joinableGames = Array.isArray(data.joinable) ? data.joinable : [];
+
+                renderSpectate(spectateGames);
+                renderJoinable(joinableGames);
+                setTimeout(() => {
+                    updateButtonStates('spectate-scroll', 'spectate-prev', 'spectate-next');
+                    updateButtonStates('joinable-scroll', 'joinable-prev', 'joinable-next');
+                }, 100);
+
+            } catch (error) {
+                console.error("Homepage error:", error);
+            }
+
+        }
+
+
+        async function fetchLeaderboard() {
+            const token = localStorage.getItem("token");
+            if (!token) return;
+
+            try {
+                const res = await fetch(`${API_BASE}/api/leaderboard`, {
+                    headers: authHeaders()
+                });
+
+                if (!res.ok) {
+                    console.error("Leaderboard fetch failed:", await res.text());
+                    return;
+                }
+
+                const users = await res.json();
+                const container = document.getElementById("leaderboard");
+                container.innerHTML = "";
+
+                users.slice(0, 10).forEach((u, i) => {
+                    const rank = i + 1;
+                    const rankClass =
+                        rank === 1 ? "rank-1" :
+                        rank === 2 ? "rank-2" :
+                        rank === 3 ? "rank-3" :
+                        "text-slate-500";
+
+                    const row = document.createElement("div");
+                    row.className = "leaderboard-row";
+                    row.innerHTML = `
+                        <div class="rank-badge ${rankClass}">#${rank}</div>
+                        <div class="flex-1 flex items-center gap-3">
+                            <div class="w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center border border-white/5">
+                                <i data-lucide="user" class="w-4 h-4 text-slate-400"></i>
+                            </div>
+                            <span class="font-bold text-white">${u.username}</span>
+                        </div>
+                        <div class="flex flex-col items-end">
+                            <span class="text-amber-400 font-mono font-bold">${u.elo}</span>
+                            <span class="text-[9px] uppercase font-black text-slate-600">ELO</span>
+                        </div>
+                    `;
+                    container.appendChild(row);
+                });
+
+                lucide.createIcons();
+
+            } catch (err) {
+                console.error("Leaderboard error:", err);
+            }
+        }
+
+
+        async function fetchAdminUsers() {
+            const token = localStorage.getItem("token");
+            if (!token) return;
+
+            try {
+                const res = await fetch(`${API_BASE}/api/admin/users`, {
+                    headers: authHeaders()
+                });
+
+                if (res.status === 403) return;
+
+                if (!res.ok) {
+                    console.error("Admin users fetch failed:", await res.text());
+                    return;
+                }
+
+                const users = await res.json();
+                const tbody = document.querySelector("#adminUsersTable tbody");
+                tbody.innerHTML = "";
+
+                users.forEach(u => {
+                    const tr = document.createElement("tr");
+                    tr.innerHTML = `
+                        <td class="text-slate-600 font-mono text-xs">${u.id}</td>
+                        <td>
+                            <input class="admin-input editUsername w-full"
+                                data-id="${u.id}"
+                                value="${u.username}">
+                        </td>
+                        <td>
+                            <input class="admin-input editElo w-24"
+                                type="number"
+                                data-id="${u.id}"
+                                value="${u.elo}">
+                        </td>
+                        <td class="text-center">
+                            <input type="checkbox"
+                                class="editLocked w-5 h-5 accent-rose-500"
+                                data-id="${u.id}"
+                                ${u.locked ? "checked" : ""}>
+                        </td>
+                        <td>
+                            <button class="deleteUser delete-btn" data-id="${u.id}">
+                                Delete
+                            </button>
+                        </td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+
+            } catch (err) {
+                console.error("Admin users error:", err);
+            }
+        }
+
+
+        document.addEventListener("input", async (e)=>{
+            if(e.target.classList.contains("editUsername") || e.target.classList.contains("editElo") || e.target.classList.contains("editLocked")){
+                const token = localStorage.getItem("token");
+                const id = e.target.dataset.id;
+                const payload = {};
+                const row = e.target.closest("tr");
+                payload.username = row.querySelector(".editUsername").value;
+                payload.elo = parseInt(row.querySelector(".editElo").value,10);
+                payload.locked = row.querySelector(".editLocked").checked;
+                
+                await fetch(`${API_BASE}/api/admin/users/${id}/edit`,{
+                    method:"POST",
+                    headers:{"Content-Type":"application/json","Authorization":`Bearer ${token}`},
+                    body:JSON.stringify(payload)
+                });
+                fetchLeaderboard();
+            }
+        });
+
+        document.addEventListener("click", async (e)=>{
+            if(e.target.classList.contains("deleteUser")){
+                const token = localStorage.getItem("token");
+                const id = e.target.dataset.id;
+                if(!confirm("Are you sure you want to delete this user?")) return;
+                
+                await fetch(`${API_BASE}/api/admin/users/${id}`, {
+                    method:"DELETE",
+                    headers:{"Authorization":`Bearer ${token}`}
+                });
+                fetchAdminUsers();
+                fetchLeaderboard();
+            }
+        });
+
+function createPlayerHtml(player, color) {
+    const isWhite = color === 'white';
+    const name = player.username || 'Waiting...';
+    const elo = player?.elo !== undefined ? `ELO ${player.elo}` : '----';
+    const isBot = player?.is_bot;
+
+    return `
+        <div class="player-info">
+            <div class="player-tag">
+                <div class="player-avatar w-10 h-10 rounded-xl ${isWhite ? 'bg-white/10' : 'bg-black/40 border border-white/10'} flex items-center justify-center">
+                    <i data-lucide="${isBot ? 'cpu' : 'user'}" class="w-5 h-5 ${isWhite ? 'text-white' : 'text-slate-400'}"></i>
+                </div>
+                <div class="flex flex-col">
+                    <span class="${isWhite ? 'text-white' : 'text-slate-300'} leading-none font-bold">${name}</span>
+                    <span class="text-[10px] text-slate-500 mt-1 uppercase font-bold tracking-tight">${color}</span>
+                </div>
+            </div>
+            <span class="elo-badge font-bold">${elo}</span>
+        </div>
+    `;
+}
+
+
+function renderSpectate(games) {
+    const grid = document.getElementById('spectate-grid');
+    if (!grid) return;
+
+    if (!games || games.length === 0) {
+        grid.innerHTML = '<div class="empty-state">No live Games at the moment</div>';
+        return;
+    }
+
+    grid.innerHTML = games.map(game => {
+        const base = game.timeControl?.base ?? game.timeControl?.minutes ?? 0;
+        const increment = game.timeControl?.increment ?? 0;
+
+        return `
+        <div class="game-card">
+            ${createPlayerHtml(game.players.white, 'white')}
+            <div class="flex justify-center my-4">
+                <span class="text-[9px] font-black text-slate-700 tracking-[0.2em]">VERSUS</span>
+            </div>
+            ${createPlayerHtml(game.players.black, 'black')}
+
+            <div class="action-btn-area">
+                <button class="card-action-btn btn-spectate" onclick="spectateGame('${game.id}')">
+                    <i data-lucide="eye" class="w-4 h-4"></i>
+                    <span>Spectate</span>
+                </button>
+            </div>
+
+            <div class="status-footer">
+                <div class="flex items-center">
+                    <span class="live-dot"></span>
+                    <span class="text-rose-500 font-extrabold text-[11px] tracking-wider">LIVE</span>
+                </div>
+                <div class="flex items-center gap-2">
+                    <i data-lucide="clock" class="w-3 h-3"></i>
+                    <span class="font-bold text-slate-400">${base}+${increment}</span>
+                    <span class="text-slate-700">|</span>
+                    <span class="font-mono uppercase text-indigo-400 font-bold tracking-tight">${game.id}</span>
+                </div>
+            </div>
+        </div>`;
+    }).join('');
+
+    lucide.createIcons();
+}
+
+function renderJoinable(games) {
+    const grid = document.getElementById('joinable-grid');
+    if (!grid) return;
+
+    if (!games || games.length === 0) {
+        grid.innerHTML = '<div class="empty-state">No open Games available</div>';
+        return;
+    }
+
+    grid.innerHTML = games.map(game => {
+        const base = game.timeControl?.base ?? game.timeControl?.minutes ?? 0;
+        const increment = game.timeControl?.increment ?? 0;
+
+        const actionButton = game.canDelete
+            ? `
+            <button class="card-action-btn delete-btn" onclick="deleteGame('${game.id}')">
+                <i data-lucide="trash-2" class="w-4 h-4"></i>
+                <span>Delete</span>
+            </button>
+            `
+            : `
+            <button class="card-action-btn btn-join" onclick="joinGame('${game.id}')">
+                <i data-lucide="play" class="w-4 h-4"></i>
+                <span>Join Game</span>
+            </button>
+            `;
+
+        return `
+        <div class="game-card">
+            ${createPlayerHtml(game.players.white, 'white')}
+            <div class="flex justify-center my-4">
+                <span class="text-[9px] font-black text-slate-700 tracking-[0.2em]">VERSUS</span>
+            </div>
+            ${createPlayerHtml(game.players.black, 'black')}
+
+            <div class="action-btn-area">
+                ${actionButton}
+            </div>
+
+            <div class="status-footer">
+                <div class="flex items-center">
+                    <span class="open-dot"></span>
+                    <span class="text-emerald-500 font-extrabold text-[11px] tracking-wider uppercase">
+                        Open Game
+                    </span>
+                </div>
+                <div class="flex items-center gap-2">
+                    <i data-lucide="clock" class="w-3 h-3"></i>
+                    <span class="font-bold text-slate-400">${base}+${increment}</span>
+                    <span class="text-slate-700">|</span>
+                    <span class="font-mono uppercase text-emerald-400 font-bold tracking-tight">
+                        ${game.id}
+                    </span>
+                </div>
+            </div>
+        </div>`;
+    }).join('');
+
+    lucide.createIcons();
+}
+
+
+
+// --- GAME ACTIONS (SOCKET BASED) ---
+
+async function deleteGame(gameId) {
+    if (!confirm("Delete this game? This cannot be undone.")) return;
+
+    try {
+        const res = await fetch(`${API_BASE}/api/game/${gameId}`, {
+            method: "DELETE",
+            headers: {
+                "Authorization": "Bearer " + localStorage.getItem("token")
+            }
+        });
+
+        if (!res.ok) {
+            const err = await res.text();
+            throw new Error(err);
+        }
+
+        fetchHomepage();
+    } catch (err) {
+        alert("Failed to delete game: " + err.message);
+    }
+}
+
+
+function spectateGame(gameId) {
+    console.log("Spectating game:", gameId);
+
+    socket.emit("spectateGame", { gameId });
+
+    // Navigate to board later if you want
+    // window.location.href = `/game.html?id=${gameId}&mode=spectate`;
+}
+
+function joinGame(gameId) {
+    console.log("Joining game:", gameId);
+
+    socket.emit("joinGame", { gameId });
+}
+
+
+            document.addEventListener("click", async (e) => {
+                if (e.target.classList.contains("deleteUser")) {
+                    const token = localStorage.getItem("token");
+                    const id = e.target.dataset.id;
+                    if (!confirm("Are you sure you want to delete this user?")) return;
+
+                    try {
+                        const res = await fetch(`${API_BASE}/api/admin/users/${id}`, {
+                            method: "DELETE",
+                            headers: { "Authorization": `Bearer ${token}` }
+                        });
+                        if (!res.ok) throw new Error(await res.text());
+
+                        // Refresh both admin and leaderboard
+                        fetchAdminUsers();
+                        fetchLeaderboard();
+                    } catch (err) {
+                        alert("Error deleting user: " + err.message);
+                    }
+                }
+            });
+
+
+        function setupCreateGameModal() {
+            const minSlider = document.getElementById('minutes-slider');
+            const minText = document.getElementById('minutes-text');
+            const incSlider = document.getElementById('increment-slider');
+            const incText = document.getElementById('increment-text');
+            const presets = [
+                { m: 1, i: 0 }, { m: 2, i: 1 }, { m: 3, i: 0 }, { m: 3, i: 2 }, { m: 5, i: 0 },
+                { m: 5, i: 3 }, { m: 10, i: 0 }, { m: 10, i: 5 }, { m: 15, i: 10 }, { m: 30, i: 0 }, { m: 30, i: 20 }
+            ];
+            const presetContainer = document.getElementById('preset-container');
+            presetContainer.innerHTML = presets.map(p => `
+                <button class="preset-btn ${p.m === 10 && p.i === 0 ? 'selected' : ''}" 
+                        onclick="setPreset(${p.m}, ${p.i}, this)">
+                    ${p.m}+${p.i}
+                </button>
+            `).join('');
+
+            minSlider.addEventListener('input', (e) => { minText.value = e.target.value; checkPresets(e.target.value, incSlider.value); });
+            minText.addEventListener('change', (e) => { 
+                let val = Math.max(1, Math.min(60, e.target.value));
+                minSlider.value = val;
+                e.target.value = val;
+                checkPresets(val, incSlider.value);
+            });
+
+            incSlider.addEventListener('input', (e) => { incText.value = e.target.value; checkPresets(minSlider.value, e.target.value); });
+            incText.addEventListener('change', (e) => { 
+                let val = Math.max(0, Math.min(60, e.target.value));
+                incSlider.value = val;
+                e.target.value = val;
+                checkPresets(minSlider.value, val);
+            });
+        }
+
+        function setPreset(m, i, btn) {
+            document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('selected'));
+            btn.classList.add('selected');
+            document.getElementById('minutes-slider').value = m;
+            document.getElementById('minutes-text').value = m;
+            document.getElementById('increment-slider').value = i;
+            document.getElementById('increment-text').value = i;
+        }
+
+        function checkPresets(m, i) {
+            document.querySelectorAll('.preset-btn').forEach(btn => {
+                const [pm, pi] = btn.innerText.split('+').map(Number);
+                if (pm == m && pi == i) btn.classList.add('selected');
+                else btn.classList.remove('selected');
+            });
+        }
+
+        function openCreateGameModal() {
+            document.getElementById('create-game-modal').style.display = 'flex';
+        }
+
+        function closeCreateGameModal() {
+            document.getElementById('create-game-modal').style.display = 'none';
+        }
+
+        async function createCustomGame(minutes, increment) {
+            try {
+                const res = await fetch(`${API_BASE}/api/createGame`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer ' + localStorage.getItem('token')
+                    },
+                    body: JSON.stringify({ minutes, increment }),
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.error || 'Failed');
+                closeCreateGameModal();
+                fetchHomepage();
+            } catch (err) { alert(err.message); }
+        }
+
+        function submitCreateGame() {
+            const m = parseInt(document.getElementById('minutes-text').value);
+            const i = parseInt(document.getElementById('increment-text').value);
+            createCustomGame(m, i);
+        }
+
+        socket.on("connect", () => console.log("Socket connected"));
+        socket.on("updateGame", () => fetchHomepage());
+
+        window.addEventListener('resize', () => {
+            updateButtonStates('spectate-scroll', 'spectate-prev', 'spectate-next');
+            updateButtonStates('joinable-scroll', 'joinable-prev', 'joinable-next');
+        });
+
+        if (localStorage.getItem('token')) {
+            document.getElementById('auth-overlay').style.display = 'none';
+            initApp();
+        }
+        
+        setInterval(() => {
+            if(localStorage.getItem('token')) {
+                fetchHomepage();
+                fetchLeaderboard();
+                if(localStorage.getItem("username") === "Admin") fetchAdminUsers();
+            }
+        }, 10000);
+    </script>
+</body>
+</html>
