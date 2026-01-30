@@ -7,6 +7,12 @@
 <script src="https://cdn.tailwindcss.com"></script>
 <script src="https://unpkg.com/lucide@latest"></script>
 <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+<script type="module">
+  import { Chess } from "./chess.js";
+  window.__ChessConstructor = Chess;
+  console.log("Chess module loaded:", !!window.__ChessConstructor);
+</script>
+
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap');
 
@@ -49,6 +55,11 @@ body {
     margin: 0;
     overflow: hidden;
     display: flex;
+}
+@media (max-width: 1100px) {
+    body { overflow: auto; }
+    .gradient-bg { height: auto; min-height: 100vh; }
+    #main-viewport { height: auto; min-height: 100vh; }
 }
 
 .gradient-bg {
@@ -116,6 +127,516 @@ body {
 
 .auth-btn:hover { background: #4f46e5; transform: translateY(-1px); }
 
+/* Game Result Modal */
+#game-result-modal{
+    position: fixed;
+    inset: 0;
+    z-index: 3500;
+    background: rgba(0,0,0,0.6);
+    backdrop-filter: blur(6px);
+    display: none;
+    align-items: center;
+    justify-content: center;
+}
+.result-card{
+    width: 100%;
+    max-width: 420px;
+    background: rgba(20,20,20,0.9);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 20px;
+    padding: 22px;
+    box-shadow: 0 30px 70px rgba(0,0,0,0.5);
+    text-align: center;
+}
+.result-title{
+    font-size: 28px;
+    font-weight: 900;
+    color: #fff;
+    margin-bottom: 16px;
+}
+.result-actions{
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+}
+.result-btn{
+    padding: 12px 16px;
+    border-radius: 12px;
+    font-weight: 800;
+    border: 1px solid rgba(255,255,255,0.08);
+    background: rgba(255,255,255,0.06);
+    color: #fff;
+}
+.result-btn.primary{
+    background: #16a34a;
+    border-color: rgba(22,163,74,0.4);
+}
+
+/* Custom action modal (replaces confirm/alert popups) */
+#action-modal,
+#pgn-modal{
+    position: fixed;
+    inset: 0;
+    z-index: 3600;
+    background: rgba(0,0,0,0.65);
+    backdrop-filter: blur(6px);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+}
+
+/* Profile modal */
+#profile-modal{
+    position: fixed;
+    inset: 0;
+    z-index: 3600;
+    background: rgba(0,0,0,0.65);
+    backdrop-filter: blur(6px);
+    display: none;
+    align-items: flex-start;
+    justify-content: center;
+    padding: 18px;
+    overflow-y: auto;
+}
+.profile-card{
+    width: 100%;
+    max-width: 980px;
+    max-height: calc(100vh - 48px);
+    overflow-y: auto;
+    background: rgba(18,18,18,0.96);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 22px;
+    padding: 22px;
+    box-shadow: 0 30px 70px rgba(0,0,0,0.55);
+}
+.profile-header{
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 14px;
+}
+.profile-title{
+    font-size: 26px;
+    font-weight: 900;
+    color: #fff;
+}
+.profile-status{
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 800;
+    background: rgba(34,197,94,0.2);
+    color: #86efac;
+    border: 1px solid rgba(34,197,94,0.4);
+}
+.profile-status.offline{
+    background: rgba(248,113,113,0.15);
+    color: #fecaca;
+    border-color: rgba(248,113,113,0.4);
+}
+.profile-meta{
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 10px;
+    margin-bottom: 16px;
+}
+.profile-meta .meta-item{
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 14px;
+    padding: 10px 12px;
+}
+.profile-meta .meta-label{
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: #94a3b8;
+    font-weight: 800;
+}
+.profile-meta .meta-value{
+    margin-top: 4px;
+    color: #fff;
+    font-weight: 800;
+}
+.profile-bio{
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 14px;
+    padding: 12px;
+    margin-bottom: 18px;
+}
+.profile-bio textarea{
+    width: 100%;
+    min-height: 70px;
+    background: transparent;
+    border: none;
+    color: #fff;
+    resize: none;
+    outline: none;
+}
+.profile-section{
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 16px;
+    padding: 14px;
+    margin-bottom: 16px;
+}
+.profile-section h3{
+    color: #fff;
+    font-weight: 900;
+    margin-bottom: 10px;
+}
+.profile-graph{
+    width: 100%;
+    height: 140px;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.05);
+    border-radius: 12px;
+    padding: 8px;
+}
+.profile-history{
+    display: grid;
+    gap: 8px;
+    min-height: 280px;
+    max-height: 320px;
+    overflow-y: auto;
+    padding-right: 4px;
+}
+.profile-history-row{
+    display: grid;
+    grid-template-columns: 1.2fr 1fr 0.8fr 0.8fr;
+    gap: 10px;
+    align-items: center;
+    padding: 10px 12px;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 12px;
+    color: #e2e8f0;
+    font-size: 13px;
+}
+.profile-history-row .muted{
+    color: #94a3b8;
+    font-size: 12px;
+}
+.pager{
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 6px;
+    margin-top: 10px;
+    flex-wrap: wrap;
+}
+.pager-btn{
+    min-width: 34px;
+    height: 34px;
+    padding: 0 10px;
+    border-radius: 10px;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.12);
+    color: #cbd5e1;
+    font-weight: 900;
+    font-size: 12px;
+    transition: all 0.2s var(--fluid-ease);
+}
+.pager-btn:hover{ background: rgba(255,255,255,0.1); color: #fff; }
+.pager-btn.active{
+    background: linear-gradient(135deg, #22c55e, #16a34a);
+    color: #0f172a;
+    border-color: rgba(34,197,94,0.55);
+}
+.pager-btn:disabled{
+    opacity: 0.35;
+    cursor: not-allowed;
+}
+.pager-ellipsis{
+    color: #64748b;
+    padding: 0 6px;
+    font-weight: 900;
+}
+.pager-info{
+    color: #94a3b8;
+    font-size: 12px;
+    font-weight: 800;
+    margin-left: 6px;
+}
+
+/* Settings modal */
+#settings-modal{
+    position: fixed;
+    inset: 0;
+    z-index: 3600;
+    background: rgba(0,0,0,0.65);
+    backdrop-filter: blur(6px);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 18px;
+}
+.settings-card{
+    width: 100%;
+    max-width: 520px;
+    background: rgba(18,18,18,0.96);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 22px;
+    padding: 22px;
+    box-shadow: 0 30px 70px rgba(0,0,0,0.55);
+}
+.settings-card h3{
+    color: #fff;
+    font-weight: 900;
+    margin-bottom: 10px;
+}
+.settings-row{
+    display: grid;
+    gap: 6px;
+    margin-bottom: 12px;
+}
+.settings-hint{
+    font-size: 12px;
+    color: #94a3b8;
+}
+
+/* Custom date picker */
+.date-input{
+    cursor: pointer;
+}
+#date-picker{
+    position: fixed;
+    z-index: 4000;
+    background: rgba(18,18,18,0.96);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 14px;
+    padding: 10px;
+    box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+    display: none;
+    width: 240px;
+}
+.date-picker-header{
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+    color: #e2e8f0;
+    font-weight: 800;
+    gap: 8px;
+}
+.date-picker-header .date-picker-nav{
+    width: 30px;
+    height: 30px;
+    border-radius: 9px;
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.08);
+    color: #e2e8f0;
+    display: grid;
+    place-items: center;
+    font-size: 16px;
+    line-height: 1;
+}
+.date-picker-header .date-picker-nav:hover{
+    background: rgba(255,255,255,0.12);
+}
+.date-day.muted{
+    color: #64748b;
+    font-weight: 700;
+}
+.date-picker-grid{
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 4px;
+    text-align: center;
+}
+.date-day{
+    padding: 6px 0;
+    border-radius: 8px;
+    color: #cbd5e1;
+    font-size: 12px;
+}
+.date-day:hover{
+    background: rgba(255,255,255,0.06);
+}
+.date-day.selected{
+    background: #22c55e;
+    color: #fff;
+    font-weight: 800;
+}
+.date-day.disabled{
+    opacity: 0.3;
+    pointer-events: none;
+}
+.profile-pagination .page-btn{
+    padding: 6px 10px;
+    border-radius: 10px;
+    background: rgba(255,255,255,0.06);
+    color: #fff;
+    font-weight: 800;
+    border: 1px solid rgba(255,255,255,0.08);
+}
+.action-card,
+.pgn-card{
+    width: 100%;
+    max-width: 460px;
+    background: rgba(20,20,20,0.96);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 20px;
+    padding: 22px;
+    box-shadow: 0 30px 70px rgba(0,0,0,0.55);
+}
+.action-title{
+    font-size: 24px;
+    font-weight: 900;
+    color: #fff;
+    margin-bottom: 8px;
+}
+.action-message{
+    color: #cbd5e1;
+    margin-bottom: 18px;
+}
+.action-actions{
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+}
+.action-btn{
+    padding: 12px 16px;
+    border-radius: 12px;
+    font-weight: 900;
+    border: 1px solid rgba(255,255,255,0.1);
+    background: rgba(255,255,255,0.06);
+    color: #fff;
+    min-width: 120px;
+}
+.action-btn.primary{
+    background: #16a34a;
+    border-color: rgba(22,163,74,0.45);
+}
+.action-btn.danger{
+    background: #ef4444;
+    border-color: rgba(239,68,68,0.45);
+}
+
+.pgn-card{
+    max-width: 900px;
+}
+.pgn-pre{
+    margin-top: 12px;
+    background: #0b0b0b;
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 14px;
+    padding: 14px;
+    max-height: 60vh;
+    overflow: auto;
+    white-space: pre-wrap;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Courier New", monospace;
+    color: #e2e8f0;
+}
+
+/* Game database view */
+.db-filters{
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+    margin-bottom: 16px;
+}
+@media (max-width: 1100px){
+    .db-filters{ grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 640px){
+    .db-filters{ grid-template-columns: 1fr; }
+}
+.db-input{
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 12px;
+    padding: 12px 14px;
+    color: #fff;
+    outline: none;
+}
+.db-actions{
+    display: flex;
+    gap: 10px;
+    margin-bottom: 16px;
+}
+@media (max-width: 1100px) {
+    .db-actions { flex-wrap: wrap; }
+}
+@media (max-width: 640px) {
+    .db-actions { flex-direction: column; }
+    .db-actions .gv-join-btn { width: 100%; justify-content: center; }
+}
+.db-controls{
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 10px;
+    align-items: center;
+}
+@media (max-width: 1100px){
+    .db-controls{ grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .db-controls .db-btn{ width: 100%; justify-content: center; }
+}
+@media (max-width: 640px){
+    .db-controls{ grid-template-columns: 1fr; }
+}
+.db-btn{
+    width: auto;
+    min-width: 120px;
+    height: 40px;
+    border-radius: 12px;
+    padding: 0 14px;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid var(--card-border);
+    color: #cbd5e1;
+    font-weight: 900;
+    transition: all 0.3s var(--fluid-ease);
+}
+.db-btn:hover{
+    background: rgba(255,255,255,0.08);
+    color: #fff;
+}
+.db-table{
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0 8px;
+}
+.db-table th{
+    text-align: left;
+    padding: 10px 16px;
+    color: #64748b;
+    font-size: 12px;
+    text-transform: uppercase;
+    font-weight: 900;
+    letter-spacing: 0.05em;
+}
+.db-table tr{
+    background: rgba(255,255,255,0.02);
+}
+.db-row{ cursor: pointer; }
+.db-row:hover{ background: rgba(255,255,255,0.05); }
+.db-table td{
+    padding: 14px 16px;
+    border-top: 1px solid var(--card-border);
+    border-bottom: 1px solid var(--card-border);
+}
+.db-table td:first-child{
+    border-left: 1px solid var(--card-border);
+    border-radius: 14px 0 0 14px;
+}
+.db-table td:last-child{
+    border-right: 1px solid var(--card-border);
+    border-radius: 0 14px 14px 0;
+}
+@media (max-width: 1100px) {
+    .db-table th,
+    .db-table td {
+        padding: 10px 12px;
+        font-size: 12px;
+    }
+    .db-btn { min-width: 96px; height: 36px; }
+}
 /* Sidebar */
 #sidebar {
     width: var(--collapsed-width);
@@ -132,6 +653,24 @@ body {
 }
 
 #sidebar.expanded { width: var(--expanded-width); }
+@media (max-width: 1100px) {
+    :root {
+        --collapsed-width: 64px;
+        --expanded-width: 200px;
+        --side-padding: 10px;
+        --item-height: 44px;
+        --grid-gap: 16px;
+    }
+}
+@media (max-width: 900px) {
+    :root {
+        --collapsed-width: 56px;
+        --expanded-width: 180px;
+        --side-padding: 8px;
+        --item-height: 42px;
+        --grid-gap: 14px;
+    }
+}
 
 .brand-icon {
     height: 80px;
@@ -203,10 +742,19 @@ body {
 
 #main-viewport { 
     flex: 1; 
-    padding: 40px; 
+    padding: clamp(16px, 2.5vw, 40px); 
     overflow-y: auto; 
-    overflow-x: hidden; 
+    overflow-x: hidden;
     position: relative; 
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+@media (max-width: 1100px) {
+    #main-viewport { padding: 20px; }
+}
+@media (max-width: 900px) {
+    #main-viewport { padding: 16px; }
 }
 
 .section-header { 
@@ -216,6 +764,19 @@ body {
     margin: 40px 0 12px 0; 
 }
 .section-title { font-size: 1.875rem; font-weight: 800; color: white; }
+@media (max-width: 1100px) {
+    .section-header { margin: 28px 0 10px 0; flex-wrap: wrap; gap: 10px; }
+    .section-title { font-size: 1.6rem; }
+}
+@media (max-width: 900px) {
+    .section-title { font-size: 1.45rem; }
+    #main-viewport h1.text-4xl { font-size: 1.7rem; }
+    #main-viewport p.text-slate-500 { font-size: 0.9rem; }
+}
+
+#view-game .section-header{
+    margin: 0 0 12px 0;
+}
 
 .carousel-container { 
     width: 100%; 
@@ -224,6 +785,9 @@ body {
     padding: 20px 0; 
     margin-top: -12px;
     scroll-snap-type: x mandatory; 
+}
+@media (max-width: 1100px) {
+    .carousel-container { padding: 14px 0; }
 }
 
 .games-grid { 
@@ -258,6 +822,21 @@ body {
 
 #sidebar.expanded ~ #main-viewport .game-card { 
     width: calc((100vw - var(--expanded-width) - 80px - (var(--grid-gap) * 2)) / 3); 
+}
+@media (max-width: 1100px) {
+    .game-card {
+        width: calc((100vw - var(--collapsed-width) - 56px - var(--grid-gap)) / 2);
+        padding: 18px;
+    }
+    #sidebar.expanded ~ #main-viewport .game-card {
+        width: calc((100vw - var(--expanded-width) - 56px - var(--grid-gap)) / 2);
+    }
+}
+@media (max-width: 900px) {
+    .game-card { width: calc(100vw - var(--collapsed-width) - 48px); padding: 16px; }
+    #sidebar.expanded ~ #main-viewport .game-card {
+        width: calc(100vw - var(--expanded-width) - 48px);
+    }
 }
 
 .game-card:hover {
@@ -372,6 +951,9 @@ body {
     width: 100%;
 }
 .leaderboard-row:hover { background: rgba(255,255,255,0.04); transform: translateX(4px); border-color: rgba(251, 191, 36, 0.2); }
+@media (max-width: 900px){
+    .leaderboard-row{ padding: 12px 16px; }
+}
 .rank-badge { width: 32px; font-weight: 900; font-style: italic; color: #64748b; }
 .rank-1 { color: #fbbf24; text-shadow: 0 0 10px rgba(251, 191, 36, 0.3); }
 .rank-2 { color: #94a3b8; }
@@ -390,6 +972,59 @@ body {
 #adminUsersTable td { padding: 16px 24px; border-top: 1px solid var(--card-border); border-bottom: 1px solid var(--card-border); }
 #adminUsersTable td:first-child { border-left: 1px solid var(--card-border); border-radius: 16px 0 0 16px; }
 #adminUsersTable td:last-child { border-right: 1px solid var(--card-border); border-radius: 0 16px 16px 0; }
+.admin-bulk-bar{
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    align-items: center;
+}
+.admin-bulk-group{
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    color: #cbd5f5;
+    font-weight: 700;
+}
+.admin-bulk-status{
+    font-size: 12px;
+    color: #94a3b8;
+}
+.community-table { width: 100%; border-collapse: separate; border-spacing: 0 8px; }
+.community-table th { text-align: left; padding: 12px 24px; color: #64748b; font-size: 12px; text-transform: uppercase; font-weight: 800; letter-spacing: 0.05em; }
+.community-table tr { background: rgba(255,255,255,0.02); }
+.community-table td { padding: 16px 24px; border-top: 1px solid var(--card-border); border-bottom: 1px solid var(--card-border); }
+.community-table td:first-child { border-left: 1px solid var(--card-border); border-radius: 16px 0 0 16px; }
+.community-table td:last-child { border-right: 1px solid var(--card-border); border-radius: 0 16px 16px 0; }
+.community-row{
+    cursor: pointer;
+}
+.community-row:hover{
+    background: rgba(255,255,255,0.05);
+}
+.community-table td,
+#adminUsersTable td{
+    vertical-align: middle;
+}
+@media (max-width: 1100px){
+    #adminUsersTable th,
+    #adminUsersTable td,
+    .community-table th,
+    .community-table td{
+        padding: 10px 12px;
+        font-size: 12px;
+    }
+    .admin-input{ padding: 6px 10px; }
+}
+@media (max-width: 900px){
+    #adminUsersTable th,
+    #adminUsersTable td,
+    .community-table th,
+    .community-table td{
+        padding: 8px 10px;
+        font-size: 11px;
+    }
+}
 .admin-input { background: rgba(255,255,255,0.05); border: 1px solid var(--card-border); border-radius: 8px; padding: 6px 12px; color: white; outline: none; transition: 0.3s; }
 .admin-input:focus { border-color: #ef4444; }
 .delete-btn { background: #ef4444; color: white; padding: 6px 12px; border-radius: 8px; font-size: 12px; font-weight: 700; border-radius: 8px; transition: 0.3s; }
@@ -438,6 +1073,7 @@ input[type="range"] {
     border-radius: 5px;
     outline: none;
     -webkit-appearance: none;
+    appearance: none;
 }
 
 input[type="range"]::-webkit-slider-thumb {
@@ -489,6 +1125,322 @@ input[type="range"]::-webkit-slider-thumb:hover { transform: scale(1.2); }
 
 .create-action-btn:hover { background: #3d3d3d; }
 .create-action-btn svg { color: #84cc16; }
+
+
+/* =========================
+   GAME VIEW (Board + Notation)
+   ========================= */
+.gv-layout{
+  display:grid;
+  grid-template-columns: minmax(350px, 1fr) minmax(220px, 360px);
+  gap: 18px;
+  margin-top: 10px;
+}
+.gv-layout.gv-hide-right{
+  grid-template-columns: minmax(350px, 1fr);
+}
+.gv-layout.gv-hide-right .gv-right{
+  display: none;
+}
+
+.gv-left, .gv-right{
+  background: rgba(0,0,0,0.25);
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 26px;
+  padding: 14px;
+  height: 100%;
+}
+.gv-left{
+  display:flex;
+  flex-direction:column;
+  min-height: 0;
+  align-items: stretch;
+}
+.gv-right{
+  display:flex;
+  flex-direction:column;
+  min-height: 0;
+  min-width: 220px;
+}
+
+.gv-board-wrap{
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  padding: 12px 0;
+  flex: 1;
+  min-height: 0;
+}
+
+.gv-board{
+  width: 100%;
+  height: 100%;
+  aspect-ratio: 1 / 1;
+  position: relative;
+  border-radius: 22px;
+  overflow:hidden;
+  border: 1px solid rgba(255,255,255,0.10);
+  box-shadow: 0 30px 70px -50px rgba(0,0,0,0.9);
+  display:grid;
+  grid-template-columns: repeat(8, 1fr);
+  grid-template-rows: repeat(8, 1fr);
+  grid-auto-rows: 1fr;
+  /* Board-scoped highlight palette (lichess-style) */
+  --gv-highlight: rgba(248, 230, 92, 0.78);
+  --gv-highlight-strong: rgba(248, 230, 92, 0.88);
+  --gv-dot: rgba(110, 82, 60, 0.32);
+  --gv-ring: rgba(241, 205, 92, 0.98);
+  --gv-ring-fill: rgba(241, 205, 92, 0.26);
+}
+
+.gv-square{ position:relative; user-select:none; }
+.gv-light{ background:#ffedc5; }
+.gv-dark{ background:#c6946b; }
+
+.gv-piece{
+  position:absolute;
+  inset:0;
+  display:block;
+  z-index:3;
+}
+.gv-piece img{
+  position:absolute;
+  left:50%;
+  top:50%;
+  transform: translate(-50%, -50%);
+  width: 92%;
+  height: 92%;
+  pointer-events:none;
+  filter: drop-shadow(0 10px 14px rgba(0,0,0,0.35));
+  /* piece animation removed per request */
+}
+.gv-piece-hide{ opacity: 0; }
+.gv-anim-piece{
+  position: absolute;
+  left: 0;
+  top: 0;
+  pointer-events: none;
+  z-index: 5;
+  transition: transform 180ms ease;
+  will-change: transform;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.gv-anim-piece img{
+  position:absolute;
+  left:50%;
+  top:50%;
+  transform: translate(-50%, -50%);
+  width: 92%;
+  height: 92%;
+  filter: drop-shadow(0 10px 14px rgba(0,0,0,0.35));
+}
+
+/* coords like screenshot */
+.gv-coord-file{
+  position:absolute; bottom: 6px; left: 8px;
+  font-size: 10px; font-weight: 900; letter-spacing: 0.04em;
+  opacity: 0.65; color: rgba(0,0,0,0.70);
+}
+.gv-coord-rank{
+  position:absolute; top: 8px; left: 8px;
+  font-size: 10px; font-weight: 900; letter-spacing: 0.04em;
+  opacity: 0.65; color: rgba(0,0,0,0.70);
+}
+
+/* selection + move targets (dot/ring like the reference images) */
+.gv-square::before{
+  content:"";
+  position:absolute;
+  inset:0;
+  pointer-events:none;
+  z-index:1;
+  opacity:0;
+  background: var(--gv-highlight);
+  transition: opacity 90ms ease;
+}
+.gv-square.gv-check::after{
+  content:"";
+  position:absolute;
+  inset:0;
+  pointer-events:none;
+  z-index:2;
+  background: radial-gradient(circle at 50% 50%, rgba(239, 68, 68, 0.55) 0%, rgba(239, 68, 68, 0.35) 55%, rgba(239, 68, 68, 0.15) 80%, transparent 100%);
+}
+.gv-square.gv-prev::before{ opacity: 1; }
+.gv-square.gv-select::before{
+  opacity: 1;
+  background: var(--gv-highlight-strong);
+}
+
+.gv-target{
+  position:absolute;
+  inset:0;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  pointer-events:none;
+  z-index:2;
+}
+.gv-target-dot{
+  width: 28%;
+  height: 28%;
+  border-radius: 999px;
+  background: var(--gv-dot);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.18);
+}
+.gv-target-ring{
+  width: 74%;
+  height: 74%;
+  border-radius: 999px;
+  border: 6px solid var(--gv-ring);
+  background: var(--gv-ring-fill);
+  box-shadow: inset 0 0 0 1px rgba(0,0,0,0.10);
+}
+
+.gv-king-badge{
+  position:absolute;
+  top:-6px;
+  right:-6px;
+  width:22px;
+  height:22px;
+  border-radius:999px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-size:12px;
+  font-weight:900;
+  color:#111;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.35);
+  border: 2px solid rgba(0,0,0,0.2);
+}
+.gv-badge-win{ background: #84cc16; }
+.gv-badge-lose{ background: #ef4444; color: #fff; }
+.gv-badge-draw{ background: #9ca3af; color: #111; }
+
+/* previous move highlight now shares the yellow overlay above */
+
+/* player bars */
+.gv-playerbar{
+  display:flex; align-items:center; justify-content:space-between; gap: 12px;
+  padding: 10px 12px;
+  border-radius: 18px;
+  border: 1px solid rgba(255,255,255,0.06);
+  background: rgba(0,0,0,0.35);
+  width: min(100%, var(--gv-board-size, 100%));
+  margin-left: auto;
+  margin-right: auto;
+}
+.gv-player-left{ display:flex; align-items:center; gap: 10px; min-width:0; }
+.gv-avatar{
+  width: 36px; height: 36px; border-radius: 12px;
+  background: rgba(255,255,255,0.06);
+  display:flex; align-items:center; justify-content:center;
+  border: 1px solid rgba(255,255,255,0.08);
+}
+.gv-name{
+  font-weight: 900; color: white;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.gv-elo{
+  font-size: 12px; color: #94a3b8; margin-left: 6px; font-weight: 800;
+}
+.gv-clock{
+  font-weight: 900; font-size: 18px; color: white;
+  padding: 6px 10px;
+  border-radius: 14px;
+  border: 1px solid rgba(255,255,255,0.08);
+  background: rgba(255,255,255,0.04);
+  min-width: 92px; text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+.gv-clock.active{ outline: 2px solid rgba(163,230,53,0.55); outline-offset: 2px; }
+@media (max-width: 900px){
+  .gv-layout{ gap: 12px; }
+  .gv-left, .gv-right{ padding: 10px; border-radius: 20px; }
+  .gv-board-wrap{ padding: 8px 0; }
+  .gv-playerbar{ flex-wrap: wrap; gap: 8px; }
+  .gv-clock{ font-size: 16px; min-width: 72px; }
+  .gv-join-btn{ height: 38px; padding: 0 12px; }
+}
+
+.gv-hint{
+  margin-top: 10px;
+  font-size: 12px;
+  color: #94a3b8;
+  display:flex;
+  justify-content:space-between;
+  gap: 12px;
+  width: min(100%, var(--gv-board-size, 100%));
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* notation */
+.gv-notation-head{ display:flex; align-items:center; justify-content:space-between; margin-bottom: 10px; }
+.gv-notation-title{ font-weight: 900; color: white; }
+.gv-notation-nav{ display:flex; gap: 8px; }
+
+.gv-notation-list{
+  overflow:auto;
+  height: auto;
+  flex: 1;
+  max-height: none;
+  min-height: 0;
+  border-radius: 18px;
+  border: 1px solid rgba(255,255,255,0.06);
+  background: rgba(255,255,255,0.02);
+  padding: 10px;
+}
+.gv-move-row{
+  display:grid;
+  grid-template-columns: 40px 1fr 1fr;
+  gap: 8px;
+  padding: 8px 8px;
+  border-radius: 10px;
+  margin-bottom: 0;
+  border: 1px solid transparent;
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+}
+.gv-move-row:hover{ background: rgba(255,255,255,0.03); border-color: rgba(255,255,255,0.06); }
+.gv-move-no{ color:#64748b; font-weight:900; font-family: monospace; }
+.gv-move{ font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Courier New", monospace; color:#e2e8f0; font-weight:800; }
+.gv-move.muted{ color:#475569; }
+.gv-move-btn{
+  width: 100%;
+  background: transparent;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  text-align: left;
+  color: inherit;
+  font: inherit;
+}
+.gv-move-btn:hover{ color:#ffffff; }
+.gv-move-btn.active{ color:#a3e635; }
+
+#view-game{
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.gv-layout{
+  flex: 1;
+  min-height: 0;
+}
+@media (max-width: 1200px){ .gv-layout{ height: auto; } }
+
+.gv-join-btn{
+  min-width: 140px;
+  height: 46px;
+  border-radius: 14px;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
 
 </style>
 </head>
@@ -567,12 +1519,121 @@ input[type="range"]::-webkit-slider-thumb:hover { transform: scale(1.2); }
     </div>
 </div>
 
+<!-- Game Result Modal -->
+<div id="game-result-modal">
+    <div class="result-card">
+        <div id="game-result-title" class="result-title">Game Over</div>
+        <div class="result-actions">
+            <button class="result-btn" onclick="resultGoHome()">Home</button>
+            <button class="result-btn primary" onclick="resultViewDatabase()">View Game</button>
+        </div>
+    </div>
+</div>
+
+<!-- Generic action modal -->
+<div id="action-modal">
+    <div class="action-card">
+        <div id="action-title" class="action-title">Action</div>
+        <div id="action-message" class="action-message"></div>
+        <div id="action-actions" class="action-actions"></div>
+    </div>
+</div>
+
+<!-- PGN viewer modal -->
+<div id="pgn-modal">
+    <div class="pgn-card">
+        <div class="action-title">Game PGN</div>
+        <div class="action-message" id="pgn-meta"></div>
+        <div id="pgn-content" class="pgn-pre"></div>
+        <div class="action-actions" style="margin-top:14px;">
+            <button class="action-btn primary" onclick="closePgnModal()">Close</button>
+        </div>
+    </div>
+</div>
+
+<!-- Profile modal -->
+<div id="profile-modal" onclick="if(event.target === this) closeProfileModal()">
+    <div class="profile-card" onclick="event.stopPropagation()">
+        <div class="profile-header">
+            <div>
+                <div class="profile-title" id="profile-username">Profile</div>
+                <div id="profile-status" class="profile-status">Online</div>
+            </div>
+            <button class="action-btn" onclick="closeProfileModal()">Close</button>
+        </div>
+        <div class="profile-meta">
+            <div class="meta-item">
+                <div class="meta-label">Account Created</div>
+                <div class="meta-value" id="profile-created">Unknown</div>
+            </div>
+            <div class="meta-item">
+                <div class="meta-label">Online Status</div>
+                <div class="meta-value" id="profile-online">Online</div>
+            </div>
+            <div class="meta-item">
+                <div class="meta-label">Current ELO</div>
+                <div class="meta-value" id="profile-elo">0</div>
+            </div>
+        </div>
+        <div class="profile-bio">
+            <div class="meta-label">Bio</div>
+            <textarea id="profile-bio" placeholder="Tell people about your style..."></textarea>
+            <div class="action-actions mt-2">
+                <button class="action-btn" onclick="saveProfileBio()">Save Bio</button>
+                <span id="profile-bio-status" class="text-xs text-slate-500"></span>
+            </div>
+        </div>
+        <div class="profile-section">
+            <h3>ELO Graph</h3>
+            <div class="profile-graph">
+                <svg id="profile-elo-graph" viewBox="0 0 600 140" width="100%" height="140"></svg>
+            </div>
+        </div>
+        <div class="profile-section">
+            <h3>Match History</h3>
+            <div id="profile-history" class="profile-history"></div>
+            <div class="pager" id="profile-pager"></div>
+        </div>
+    </div>
+</div>
+
+<!-- Settings modal -->
+<div id="settings-modal" onclick="if(event.target === this) closeSettingsModal()">
+    <div class="settings-card" onclick="event.stopPropagation()">
+        <div class="profile-header">
+            <div class="profile-title">Settings</div>
+            <button class="action-btn" onclick="closeSettingsModal()">Close</button>
+        </div>
+        <div class="settings-row">
+            <label class="meta-label">Username</label>
+            <input id="settings-username" class="admin-input" placeholder="Username">
+            <div class="settings-hint" id="settings-username-hint"></div>
+        </div>
+        <div class="settings-row">
+            <label class="meta-label">New Password</label>
+            <input id="settings-password" type="password" class="admin-input" placeholder="New password">
+        </div>
+        <div class="settings-row">
+            <label class="meta-label">Confirm Password</label>
+            <input id="settings-password-confirm" type="password" class="admin-input" placeholder="Confirm password">
+        </div>
+        <div class="action-actions">
+            <button class="action-btn" onclick="saveSettings()">Save</button>
+            <button class="action-btn" style="background:#ef4444;" onclick="handleLogout()">Logout</button>
+            <span id="settings-status" class="text-xs text-slate-500"></span>
+        </div>
+    </div>
+</div>
+
+<!-- Date picker -->
+<div id="date-picker"></div>
+
 <aside id="sidebar">
     <div class="brand-icon" onclick="toggleSidebar()">
         <div class="icon-box"><i data-lucide="layout-grid" class="w-6 h-6"></i></div>
     </div>
     <nav class="mt-2 flex-1 nav-list">
-        <div class="nav-item active" onclick="switchView('home')">
+        <div class="nav-item active" data-view="home" onclick="switchView('home')">
             <div class="icon-box"><i data-lucide="home" class="w-5 h-5 text-indigo-400"></i></div>
             <span class="label-text">Home</span>
         </div>
@@ -580,28 +1641,36 @@ input[type="range"]::-webkit-slider-thumb:hover { transform: scale(1.2); }
             <div class="icon-box"><i data-lucide="plus-circle" class="w-5 h-5 text-emerald-400"></i></div>
             <span class="label-text">Create a Game</span>
         </div>
-        <div class="nav-item" onclick="switchView('leaderboard')">
+        <div class="nav-item" data-view="leaderboard" onclick="switchView('leaderboard')">
             <div class="icon-box"><i data-lucide="trophy" class="w-5 h-5 text-amber-400"></i></div>
             <span class="label-text">Leaderboards</span>
         </div>
-        <div class="nav-item">
+        <div class="nav-item" data-view="analysis" onclick="switchView('analysis')">
             <div class="icon-box"><i data-lucide="microscope" class="w-5 h-5 text-blue-400"></i></div>
             <span class="label-text">Analysis</span>
         </div>
+        <div class="nav-item" data-view="database" onclick="switchView('database')">
+            <div class="icon-box"><i data-lucide="database" class="w-5 h-5 text-cyan-400"></i></div>
+            <span class="label-text">Game Database</span>
+        </div>
+        <div class="nav-item" data-view="community" onclick="switchView('community')">
+            <div class="icon-box"><i data-lucide="users" class="w-5 h-5 text-emerald-400"></i></div>
+            <span class="label-text">Community</span>
+        </div>
         <!-- Admin Section - Hidden by default -->
-        <div id="admin-nav-item" class="nav-item" onclick="switchView('admin')" hidden>
+        <div id="admin-nav-item" class="nav-item" data-view="admin" onclick="switchView('admin')" hidden>
             <div class="icon-box"><i data-lucide="shield-alert" class="w-5 h-5 text-rose-500"></i></div>
             <span class="label-text">Admin Panel</span>
         </div>
     </nav>
     <div class="bottom-nav mb-4">
-        <div class="nav-item">
+        <div class="nav-item" onclick="openProfileModal()">
+            <div class="icon-box"><i data-lucide="user" class="w-5 h-5 text-slate-400"></i></div>
+            <span class="label-text">Profile</span>
+        </div>
+        <div class="nav-item" onclick="openSettingsModal()">
             <div class="icon-box"><i data-lucide="settings" class="w-5 h-5 text-slate-400"></i></div>
             <span class="label-text">Settings</span>
-        </div>
-        <div class="nav-item" onclick="handleLogout()">
-            <div class="icon-box"><i data-lucide="log-out" class="w-5 h-5 text-rose-400"></i></div>
-            <span class="label-text">Logout</span>
         </div>
     </div>
 </aside>
@@ -652,7 +1721,83 @@ input[type="range"]::-webkit-slider-thumb:hover { transform: scale(1.2); }
             </section>
         </div>
 
-        <!-- Leaderboard View -->
+        
+        <!-- Game View -->
+        <div id="view-game" hidden>
+            <header class="section-header">
+                <div>
+                    <h1 id="gv-title" class="section-title">Game</h1>
+                    <p id="gv-subtitle" class="text-slate-500 mt-1">Loading...</p>
+                </div>
+                <div class="flex gap-2 mb-1">
+                    <button id="gv-join-btn" class="nav-btn btn-open gv-join-btn" onclick="gvJoin()">Join</button>
+                    <button id="gv-leave-btn" class="nav-btn btn-active gv-join-btn" onclick="leaveToHome('leave-btn')" hidden>Leave</button>
+                    <button id="gv-draw-btn" class="nav-btn gv-join-btn" onclick="gvDraw()" hidden>Offer Draw</button>
+                    <button id="gv-resign-btn" class="nav-btn gv-join-btn" onclick="gvResign()" hidden>Resign</button>
+                    <button id="gv-flip-btn" class="nav-btn gv-join-btn" onclick="flipBoard()" title="Flip Board">
+                        <i data-lucide="flip-horizontal" class="w-5 h-5"></i>
+                    </button>
+                </div>
+            </header>
+
+            <div class="gv-layout">
+                <!-- LEFT -->
+                <div class="gv-left">
+                    <div class="gv-playerbar" id="gv-blackbar">
+                        <div class="gv-player-left" id="gv-blackinfo"></div>
+                        <div class="gv-player-right">
+                            <div class="gv-clock" id="gv-blackclock">--:--</div>
+                        </div>
+                    </div>
+
+                    <div class="gv-board-wrap">
+                        <div id="gv-board" class="gv-board"></div>
+                    </div>
+
+                    <div class="gv-playerbar" id="gv-whitebar">
+                        <div class="gv-player-left" id="gv-whiteinfo"></div>
+                        <div class="gv-player-right">
+                            <div class="gv-clock" id="gv-whiteclock">--:--</div>
+                        </div>
+                    </div>
+
+                    <div id="gv-hint" class="gv-hint"></div>
+                </div>
+
+                <!-- RIGHT -->
+                <div class="gv-right">
+                    <div class="gv-notation-head">
+                        <div class="gv-notation-title">Notation</div>
+                        <div class="gv-notation-nav">
+                            <button id="gv-first-btn" class="nav-btn" title="First">
+                                <i data-lucide="chevrons-left" class="w-5 h-5"></i>
+                            </button>
+                            <button id="gv-back-btn" class="nav-btn" title="Back">
+                                <i data-lucide="chevron-left" class="w-5 h-5"></i>
+                            </button>
+                            <button id="gv-forward-btn" class="nav-btn" title="Forward">
+                                <i data-lucide="chevron-right" class="w-5 h-5"></i>
+                            </button>
+                            <button id="gv-last-btn" class="nav-btn" title="Last">
+                                <i data-lucide="chevrons-right" class="w-5 h-5"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div id="gv-notation" class="gv-notation-list"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Analysis View -->
+        <div id="view-analysis" hidden>
+            <header class="mb-10">
+                <h1 class="text-4xl font-black text-white">Analysis</h1>
+                <p class="text-slate-500 mt-2">Coming soon.</p>
+            </header>
+            <div class="empty-state">Analysis tools are on the way.</div>
+        </div>
+
+<!-- Leaderboard View -->
         <div id="view-leaderboard" hidden>
             <header class="mb-10">
                 <h1 class="text-4xl font-black text-white">Leaderboard</h1>
@@ -662,6 +1807,46 @@ input[type="range"]::-webkit-slider-thumb:hover { transform: scale(1.2); }
                 <!-- Leaderboard entries will be rendered here -->
                 <div class="empty-state">Loading global rankings...</div>
             </div>
+        </div>
+
+        <!-- Game Database View -->
+        <div id="view-database" hidden>
+            <header class="mb-8">
+                <h1 class="text-4xl font-black text-white">Game Database</h1>
+                <p class="text-slate-500 mt-2">Search finished games by ID, user, and date.</p>
+            </header>
+
+            <section>
+                <div class="db-filters">
+                    <input id="db-id" class="db-input" type="number" min="0" placeholder="Game ID (e.g. 42)">
+                    <input id="db-user" class="db-input" type="text" placeholder="User (username or id)">
+                    <input id="db-date" class="db-input date-input" placeholder="Date" readonly>
+                </div>
+                <div class="db-actions">
+                    <button class="nav-btn btn-open gv-join-btn" onclick="fetchGamesDb()">Search</button>
+                    <button class="nav-btn gv-join-btn" onclick="clearGamesDbFilters()">Clear</button>
+                </div>
+
+                <div class="overflow-x-auto">
+                    <table class="db-table" id="db-table">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Date</th>
+                                <th>White</th>
+                                <th>Black</th>
+                                <th>Result</th>
+                                <th>Time</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr><td colspan="7" class="text-slate-500">Run a search to see games.</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="pager" id="db-pager"></div>
+            </section>
         </div>
 
         <!-- Admin View -->
@@ -675,14 +1860,96 @@ input[type="range"]::-webkit-slider-thumb:hover { transform: scale(1.2); }
 
             <section id="adminPanel">
                 <h2 class="text-xl font-bold text-white mb-6">User Management</h2>
+                <div class="mb-6 p-4 rounded-2xl border border-slate-700/50 bg-white/5">
+                    <div class="flex flex-wrap items-center gap-3">
+                        <span class="text-xs text-slate-400 font-bold">Admin Game Controls</span>
+                        <button class="db-btn" onclick="adminPauseGames()">Pause All Games</button>
+                        <button class="db-btn" onclick="adminResumeGames()">Resume All Games</button>
+                        <button class="db-btn" onclick="adminStopGames()">Stop All Games</button>
+                        <span id="admin-game-status" class="text-xs text-slate-500"></span>
+                    </div>
+                </div>
+                <div class="mb-6 flex flex-wrap items-center gap-3">
+                    <input id="admin-search" class="admin-input w-80" placeholder="Search users by ID or username">
+                    <button class="db-btn" onclick="adminSaveAll()">Save All Changes</button>
+                    <span id="admin-save-all-status" class="text-xs text-slate-500"></span>
+                </div>
+                <div class="mb-6 p-4 rounded-2xl border border-slate-700/50 bg-white/5">
+                    <div class="flex flex-wrap items-end gap-3">
+                        <div class="flex flex-col gap-1">
+                            <label class="text-xs text-slate-400 font-bold">Username</label>
+                            <input id="admin-new-username" class="admin-input w-48" placeholder="New user">
+                        </div>
+                        <div class="flex flex-col gap-1">
+                            <label class="text-xs text-slate-400 font-bold">Password</label>
+                            <input id="admin-new-password" type="password" class="admin-input w-56" placeholder="Strong password">
+                        </div>
+                        <div class="flex flex-col gap-1">
+                            <label class="text-xs text-slate-400 font-bold">ELO</label>
+                            <input id="admin-new-elo" type="number" class="admin-input w-24" value="1200">
+                        </div>
+                        <label class="flex items-center gap-2 text-xs text-slate-300 font-bold">
+                            <input id="admin-new-bot" type="checkbox" class="w-4 h-4 accent-emerald-500">
+                            Bot
+                        </label>
+                        <label class="flex items-center gap-2 text-xs text-slate-300 font-bold">
+                            <input id="admin-new-locked" type="checkbox" class="w-4 h-4 accent-rose-500">
+                            Locked
+                        </label>
+                        <button id="admin-create-user" class="delete-btn" style="background:#ef4444;">Create User</button>
+                        <span id="admin-create-status" class="text-xs text-slate-500"></span>
+                    </div>
+                </div>
+                <div class="mb-6 p-4 rounded-2xl border border-slate-700/50 bg-white/5">
+                    <div class="admin-bulk-bar">
+                        <span class="text-xs text-slate-400 font-bold">Bulk update selected</span>
+                        <label class="admin-bulk-group">
+                            <input id="admin-bulk-apply-elo" type="checkbox" class="w-4 h-4 accent-indigo-500">
+                            ELO
+                            <input id="admin-bulk-elo" type="number" class="admin-input w-24" value="1200">
+                        </label>
+                        <label class="admin-bulk-group">
+                            <input id="admin-bulk-apply-locked" type="checkbox" class="w-4 h-4 accent-rose-500">
+                            Locked
+                            <input id="admin-bulk-locked" type="checkbox" class="w-4 h-4 accent-rose-500">
+                        </label>
+                        <label class="admin-bulk-group">
+                            <input id="admin-bulk-apply-bot" type="checkbox" class="w-4 h-4 accent-emerald-500">
+                            Bot
+                            <input id="admin-bulk-bot" type="checkbox" class="w-4 h-4 accent-emerald-500">
+                        </label>
+                        <label class="admin-bulk-group">
+                            <input id="admin-bulk-apply-admin" type="checkbox" class="w-4 h-4 accent-red-500">
+                            Admin
+                            <input id="admin-bulk-admin" type="checkbox" class="w-4 h-4 accent-red-500">
+                        </label>
+                        <label class="admin-bulk-group">
+                            <input id="admin-bulk-apply-created" type="checkbox" class="w-4 h-4 accent-indigo-500">
+                            Created
+                            <input id="admin-bulk-created" class="admin-input date-input w-32" placeholder="YYYY-MM-DD" readonly>
+                        </label>
+                        <button id="admin-bulk-apply" class="delete-btn" style="background:#ef4444;">Apply</button>
+                        <span id="admin-bulk-status" class="admin-bulk-status"></span>
+                    </div>
+                </div>
                 <div class="overflow-x-auto">
                     <table id="adminUsersTable">
                         <thead>
                             <tr>
+                                <th>
+                                    <input id="admin-select-all" type="checkbox" class="w-4 h-4 accent-indigo-500">
+                                </th>
                                 <th>ID</th>
                                 <th>Username</th>
+                                <th>Bio</th>
                                 <th>ELO</th>
+                                <th>Bot</th>
                                 <th>Locked</th>
+                                <th>Admin</th>
+                                <th>Bot UCI ELO</th>
+                                <th>Bot MoveTime</th>
+                                <th>Password</th>
+                                <th>Created</th>
                                 <th>Actions</th>
                             </tr>
                         </thead>
@@ -691,23 +1958,128 @@ input[type="range"]::-webkit-slider-thumb:hover { transform: scale(1.2); }
                         </tbody>
                     </table>
                 </div>
+                <div class="pager" id="admin-pager"></div>
             </section>
         </div>
+
+        <!-- Community View -->
+        <div id="view-community" hidden>
+            <header class="mb-10">
+                <div class="flex items-center gap-3">
+                    <h1 class="text-4xl font-black text-white">Community</h1>
+                </div>
+                <p class="text-slate-500 mt-2">Browse all non-bot accounts.</p>
+            </header>
+            <section>
+                <div class="db-controls">
+                    <input id="community-id" class="db-input" type="number" placeholder="User ID">
+                    <input id="community-user" class="db-input" placeholder="Username">
+                    <input id="community-from" class="db-input date-input" placeholder="From date" readonly>
+                    <input id="community-to" class="db-input date-input" placeholder="To date" readonly>
+                    <button class="db-btn" onclick="fetchCommunityUsers()">Search</button>
+                </div>
+                <div class="overflow-x-auto mt-4">
+                    <table id="communityTable" class="community-table">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Username</th>
+                                <th>ELO</th>
+                                <th>Created</th>
+                                <th>Bio</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr><td colspan="5" class="text-slate-500">Search the community list.</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="pager" id="community-pager"></div>
+            </section>
+        </div>
+
     </main>
 
     <script>
         lucide.createIcons();
-        const API_BASE = "https://injuries-informal-proceeds-captured.trycloudflare.com";
+        const API_BASE = "https://conclude-blogs-beneath-housing.trycloudflare.com";
 
         // --- AUTHENTICATION LOGIC ---
 
         // --- AUTH HEADER ---
                 function authHeaders() {
             const token = localStorage.getItem("token");
-            return {
-                "Authorization": "Bearer " + token,
-                "Content-Type": "application/json"
+            const headers = { "Content-Type": "application/json" };
+            if (token) headers.Authorization = "Bearer " + token;
+            return headers;
+        }
+
+        function escapeHtml(value) {
+            return String(value)
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#39;");
+        }
+
+        function coalesce() {
+            for (let i = 0; i < arguments.length; i += 1) {
+                const value = arguments[i];
+                if (value !== null && value !== undefined) return value;
+            }
+            return undefined;
+        }
+
+        function renderPager(container, current, total, onPage) {
+            if (!container) return;
+            container.innerHTML = "";
+            if (total <= 1) return;
+
+            const makeBtn = (label, page, disabled, active) => {
+                const btn = document.createElement("button");
+                btn.className = "pager-btn";
+                if (active) btn.classList.add("active");
+                btn.disabled = !!disabled;
+                btn.textContent = label;
+                btn.onclick = () => {
+                    if (btn.disabled) return;
+                    onPage(page);
+                };
+                return btn;
             };
+
+            container.appendChild(makeBtn("‹", current - 1, current <= 1));
+
+            const pages = [];
+            if (total <= 7) {
+                for (let i = 1; i <= total; i += 1) pages.push(i);
+            } else {
+                pages.push(1);
+                if (current > 3) pages.push("...");
+                const start = Math.max(2, current - 1);
+                const end = Math.min(total - 1, current + 1);
+                for (let i = start; i <= end; i += 1) pages.push(i);
+                if (current < total - 2) pages.push("...");
+                pages.push(total);
+            }
+
+            pages.forEach((p) => {
+                if (p === "...") {
+                    const ellipsis = document.createElement("span");
+                    ellipsis.className = "pager-ellipsis";
+                    ellipsis.textContent = "…";
+                    container.appendChild(ellipsis);
+                } else {
+                    container.appendChild(makeBtn(String(p), p, false, p === current));
+                }
+            });
+
+            container.appendChild(makeBtn("›", current + 1, current >= total));
+            const info = document.createElement("span");
+            info.className = "pager-info";
+            info.textContent = `${current} / ${total}`;
+            container.appendChild(info);
         }
 
         function toggleAuthView(view) {
@@ -783,10 +2155,11 @@ input[type="range"]::-webkit-slider-thumb:hover { transform: scale(1.2); }
         function handleLogout() {
             localStorage.removeItem('token');
             localStorage.removeItem('username');
+            if (socket) socket.disconnect();
             location.reload();
         }
 
-        function initApp() {
+        async function initApp() {
             const token = localStorage.getItem('token');
             if (!token) return;
 
@@ -794,51 +2167,233 @@ input[type="range"]::-webkit-slider-thumb:hover { transform: scale(1.2); }
             overlay.style.opacity = '0';
             overlay.style.pointerEvents = 'none';
             setTimeout(() => overlay.style.visibility = 'hidden', 600);
-            
-            checkAdminStatus();
+
+            await checkAdminStatus();
+            if (socket) {
+                socket.auth = { token };
+                socket.connect();
+            }
             fetchHomepage(); 
             fetchLeaderboard();
-            fetchAdminUsers();
+            if (isAdmin) fetchAdminUsers();
             setupCreateGameModal();
         }
 
-        function checkAdminStatus() {
-            const username = localStorage.getItem("username");
+        function showResultModal(text) {
+            const modal = document.getElementById("game-result-modal");
+            const title = document.getElementById("game-result-title");
+            if (!modal || !title) return;
+            title.textContent = text;
+            modal.style.display = "flex";
+            modal.dataset.openedAt = String(Date.now());
+            // Prevent the click that ended the game from accidentally triggering buttons.
+            modal.style.pointerEvents = "none";
+            setTimeout(() => {
+                if (modal.style.display === "flex") modal.style.pointerEvents = "auto";
+            }, 250);
+        }
+
+        function closeResultModal() {
+            const modal = document.getElementById("game-result-modal");
+            if (modal) modal.style.display = "none";
+        }
+
+        function resultViewDatabase() {
+            closeResultModal();
+            if (gv.gameId != null) {
+                openDbGame(gv.gameId);
+                return;
+            }
+            switchView("database");
+        }
+
+        async function resultGoHome() {
+            console.log("[result] home clicked");
+            const modal = document.getElementById("game-result-modal");
+            const openedAt = Number(modal?.dataset?.openedAt || 0);
+            if (openedAt && Date.now() - openedAt < 250) return;
+            gv.suppressResultModal = true;
+            const ok = await confirmAction(
+                "Leave game?",
+                "Return to the home screen.",
+                "Leave",
+                "danger"
+            );
+            if (!ok) return;
+            closeResultModal();
+            leaveToHome('result-home');
+        }
+
+        async function waitForDbGame(gameId, attempts = 6, delayMs = 500) {
+            for (let i = 0; i < attempts; i++) {
+                try {
+                    const res = await fetch(`${API_BASE}/api/gamesdb/${gameId}`, { headers: authHeaders() });
+                    if (res.status === 401) {
+                        handleLogout();
+                        return false;
+                    }
+                    if (res.ok) return true;
+                } catch {}
+                await new Promise((r) => setTimeout(r, delayMs));
+            }
+            return false;
+        }
+
+        async function goToDatabaseForGame(gameId) {
+            console.log("[result] goToDatabaseForGame", gameId);
+            const idInput = document.getElementById("db-id");
+            if (idInput) idInput.value = String(gameId);
+            switchView("database");
+            await waitForDbGame(gameId);
+            fetchGamesDb();
+        }
+
+        let actionModalResolver = null;
+
+        function openActionModal({ title, message, buttons }) {
+            const modal = document.getElementById("action-modal");
+            const titleEl = document.getElementById("action-title");
+            const msgEl = document.getElementById("action-message");
+            const actionsEl = document.getElementById("action-actions");
+            if (!modal || !titleEl || !msgEl || !actionsEl) return Promise.resolve(null);
+
+            if (actionModalResolver) {
+                // Resolve any prior modal to avoid dangling promises.
+                const resolve = actionModalResolver;
+                actionModalResolver = null;
+                resolve(null);
+            }
+
+            titleEl.textContent = title || "Action";
+            msgEl.textContent = message || "";
+            actionsEl.innerHTML = "";
+
+            (buttons || []).forEach((btn) => {
+                const el = document.createElement("button");
+                el.className = `action-btn ${btn.variant || ""}`.trim();
+                el.textContent = btn.label || "OK";
+                el.onclick = () => closeActionModal(btn.value);
+                actionsEl.appendChild(el);
+            });
+
+            modal.style.display = "flex";
+            return new Promise((resolve) => {
+                actionModalResolver = resolve;
+            });
+        }
+
+        function closeActionModal(value) {
+            const modal = document.getElementById("action-modal");
+            if (modal) modal.style.display = "none";
+            if (actionModalResolver) {
+                const resolve = actionModalResolver;
+                actionModalResolver = null;
+                resolve(value);
+            }
+        }
+
+        function confirmAction(title, message, confirmLabel = "Confirm", variant = "primary") {
+            return openActionModal({
+                title,
+                message,
+                buttons: [
+                    { label: "Cancel", value: false },
+                    { label: confirmLabel, value: true, variant },
+                ],
+            }).then((v) => v === true);
+        }
+
+        function showInfo(title, message) {
+            return openActionModal({
+                title,
+                message,
+                buttons: [{ label: "OK", value: true, variant: "primary" }],
+            });
+        }
+
+        // Close the action modal when clicking the backdrop.
+        document.getElementById("action-modal")?.addEventListener("click", (e) => {
+            if (e.target?.id === "action-modal") closeActionModal(null);
+        });
+
+        function closePgnModal() {
+            const modal = document.getElementById("pgn-modal");
+            if (modal) modal.style.display = "none";
+        }
+
+        function openPgnModal(metaText, pgn) {
+            const modal = document.getElementById("pgn-modal");
+            const meta = document.getElementById("pgn-meta");
+            const content = document.getElementById("pgn-content");
+            if (!modal || !meta || !content) return;
+            meta.textContent = metaText || "";
+            content.textContent = pgn || "No PGN available.";
+            modal.style.display = "flex";
+        }
+
+        async function checkAdminStatus() {
+            const token = localStorage.getItem("token");
             const adminNav = document.getElementById('admin-nav-item');
             const adminPanel = document.getElementById('adminPanel');
-            
-            if (username === "Admin") {
-                adminNav.hidden = false;
-                if(adminPanel) adminPanel.style.display = "block";
+            if (!token || !adminNav) return;
+
+            isAdmin = false;
+            adminNav.hidden = true;
+            if (adminPanel) adminPanel.style.display = "none";
+
+            try {
+                const res = await fetch(`${API_BASE}/api/me`, { headers: authHeaders() });
+                if (!res.ok) return;
+                const me = await res.json();
+                currentUserId = Number(me?.id) || null;
+                isAdmin = !!me.is_admin;
+                if (isAdmin) {
+                    adminNav.hidden = false;
+                    if (adminPanel) adminPanel.style.display = "block";
+                }
+            } catch (err) {
+                console.error("Admin status check failed:", err);
             }
         }
 
         // --- DASHBOARD UI LOGIC ---
 
         let isUpdateFrozen = false;
+        let isAdmin = false;
 
         function switchView(view) {
+            console.log("[view] switchView", view, {
+                gameId: gv?.gameId,
+                mode: gv?.mode,
+                lastResult: gv?.lastGame?.result,
+            });
             const homeView = document.getElementById('view-home');
             const adminView = document.getElementById('view-admin');
             const leaderboardView = document.getElementById('view-leaderboard');
-            const navItems = document.querySelectorAll('.nav-list .nav-item');
+            const analysisView = document.getElementById('view-analysis');
+            const databaseView = document.getElementById('view-database');
+            const gameView = document.getElementById('view-game');
+            const communityView = document.getElementById('view-community');
+            const navItems = document.querySelectorAll('.nav-list .nav-item[data-view]');
 
             navItems.forEach(item => item.classList.remove('active'));
 
             homeView.hidden = (view !== 'home');
             adminView.hidden = (view !== 'admin');
             leaderboardView.hidden = (view !== 'leaderboard');
+            if (analysisView) analysisView.hidden = (view !== 'analysis');
+            if (databaseView) databaseView.hidden = (view !== 'database');
+            gameView.hidden = (view !== 'game');
+            if (communityView) communityView.hidden = (view !== 'community');
 
-            if (view === 'home') {
-                navItems[0].classList.add('active');
-            } else if (view === 'leaderboard') {
-                navItems[2].classList.add('active');
-                fetchLeaderboard();
-            } else if (view === 'admin') {
-                document.getElementById('admin-nav-item').classList.add('active');
-                fetchAdminUsers();
-            }
-            
+            const activeItem = document.querySelector(`.nav-list .nav-item[data-view="${view}"]`);
+            if (activeItem) activeItem.classList.add('active');
+
+            if (view === 'leaderboard') fetchLeaderboard();
+            if (view === 'database') fetchGamesDb();
+            if (view === 'admin') fetchAdminUsers();
+            if (view === 'community') fetchCommunityUsers();
+
             setTimeout(() => {
                 updateButtonStates('spectate-scroll', 'spectate-prev', 'spectate-next');
                 updateButtonStates('joinable-scroll', 'joinable-prev', 'joinable-next');
@@ -879,7 +2434,7 @@ input[type="range"]::-webkit-slider-thumb:hover { transform: scale(1.2); }
             el.scrollTo({ left: Math.max(0, Math.min(targetScroll, el.scrollWidth - el.clientWidth)), behavior: 'smooth' });
         }
 
-        const socket = io(API_BASE);
+        const socket = io(API_BASE, { autoConnect: false });
 
         async function fetchHomepage() {
             const token = localStorage.getItem("token");
@@ -899,7 +2454,7 @@ input[type="range"]::-webkit-slider-thumb:hover { transform: scale(1.2); }
 
                 const data = await response.json();
 
-                // 🔥 IMPORTANT: data is an OBJECT, not an array
+                // IMPORTANT: data is an OBJECT, not an array
                 const spectateGames = Array.isArray(data.spectate) ? data.spectate : [];
                 const joinableGames = Array.isArray(data.joinable) ? data.joinable : [];
 
@@ -951,7 +2506,7 @@ input[type="range"]::-webkit-slider-thumb:hover { transform: scale(1.2); }
                             <div class="w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center border border-white/5">
                                 <i data-lucide="user" class="w-4 h-4 text-slate-400"></i>
                             </div>
-                            <span class="font-bold text-white">${u.username}</span>
+                            <span class="font-bold text-white">${escapeHtml(u.username)}</span>
                         </div>
                         <div class="flex flex-col items-end">
                             <span class="text-amber-400 font-mono font-bold">${u.elo}</span>
@@ -969,9 +2524,257 @@ input[type="range"]::-webkit-slider-thumb:hover { transform: scale(1.2); }
         }
 
 
-        async function fetchAdminUsers() {
+        function formatDateTime(ms) {
+            const n = Number(ms);
+            if (!Number.isFinite(n)) return "-";
+            const d = new Date(n);
+            return d.toLocaleString();
+        }
+
+        function resultText(result) {
+            if (result === "1-0") return "White won";
+            if (result === "0-1") return "Black won";
+            if (result === "1/2-1/2") return "Draw";
+            return result || "-";
+        }
+
+        async function fetchGamesDb() {
             const token = localStorage.getItem("token");
             if (!token) return;
+
+            const id = document.getElementById("db-id")?.value?.trim();
+            const user = document.getElementById("db-user")?.value?.trim();
+            const date = document.getElementById("db-date")?.value;
+
+            const params = new URLSearchParams();
+            if (id) params.set("id", id);
+            if (user) params.set("user", user);
+            if (date) params.set("date", date);
+            params.set("limit", "100");
+
+            try {
+                const res = await fetch(`${API_BASE}/api/gamesdb?${params.toString()}`, {
+                    headers: authHeaders(),
+                });
+                if (res.status === 401) return handleLogout();
+                if (!res.ok) throw new Error(await res.text());
+                const data = await res.json();
+                dbRows = Array.isArray(data.games) ? data.games : [];
+                dbPage = 1;
+                renderGamesDb();
+            } catch (err) {
+                console.error("Game database error:", err);
+                showInfo("Game Database", "Failed to load games.");
+            }
+        }
+
+        function clearGamesDbFilters() {
+            const id = document.getElementById("db-id");
+            const user = document.getElementById("db-user");
+            const date = document.getElementById("db-date");
+            if (id) id.value = "";
+            if (user) user.value = "";
+            if (date) date.value = "";
+            const tbody = document.querySelector("#db-table tbody");
+            if (tbody) {
+                tbody.innerHTML = `<tr><td colspan="7" class="text-slate-500">Run a search to see games.</td></tr>`;
+            }
+            const pager = document.getElementById("db-pager");
+            if (pager) pager.innerHTML = "";
+            dbRows = [];
+            dbPage = 1;
+        }
+
+        function renderGamesDb() {
+            const tbody = document.querySelector("#db-table tbody");
+            const pager = document.getElementById("db-pager");
+            if (!tbody) return;
+            if (!dbRows.length) {
+                tbody.innerHTML = `<tr><td colspan="7" class="text-slate-500">No games found.</td></tr>`;
+                if (pager) pager.innerHTML = "";
+                return;
+            }
+
+            const totalPages = Math.max(1, Math.ceil(dbRows.length / dbPageSize));
+            dbPage = Math.min(dbPage, totalPages);
+            const start = (dbPage - 1) * dbPageSize;
+            const items = dbRows.slice(start, start + dbPageSize);
+
+            tbody.innerHTML = items.map((g) => {
+                const white = escapeHtml(g.white_username || "Waiting...");
+                const black = escapeHtml(g.black_username || "Waiting...");
+                const date = formatDateTime(g.ended_at || g.created_at);
+                const time = `${g.time_base || 0}+${g.time_increment || 0}`;
+                const reason = g.reason ? ` (${escapeHtml(g.reason)})` : "";
+                return `
+                    <tr class="db-row" onclick="openDbGame(${g.id})">
+                        <td class="font-mono text-xs text-slate-400">#${g.id}</td>
+                        <td>${date}</td>
+                        <td>${white}</td>
+                        <td>${black}</td>
+                        <td>${resultText(g.result)}${reason}</td>
+                        <td>${time}</td>
+                        <td>
+                            <button class="db-btn btn-open" onclick="event.stopPropagation(); openDbGame(${g.id})">Open</button>
+                            <button class="db-btn" onclick="event.stopPropagation(); viewGamePgn(${g.id})">PGN</button>
+                            ${isAdmin ? `<button class="db-btn delete-btn" onclick="event.stopPropagation(); deleteGameDb(${g.id})">Delete</button>` : ""}
+                        </td>
+                    </tr>
+                    `;
+            }).join("");
+            renderPager(pager, dbPage, totalPages, (page) => {
+                dbPage = page;
+                renderGamesDb();
+            });
+        }
+
+        function loadPgnSafeLocal(chess, pgn) {
+            const text = typeof pgn === "string" ? pgn.trim() : "";
+            if (!text) return false;
+            try {
+                if (typeof chess.loadPgn === "function") return chess.loadPgn(text, { sloppy: true });
+                if (typeof chess.load_pgn === "function") return chess.load_pgn(text, { sloppy: true });
+            } catch {
+                return false;
+            }
+            return false;
+        }
+
+        function movesFromPgn(pgn) {
+            try {
+                const chess = newChess();
+                const loaded = loadPgnSafeLocal(chess, pgn);
+                if (!loaded) return [];
+                const hist = chess.history({ verbose: true }) || [];
+                return hist.map((m) => `${m.from}${m.to}${m.promotion || ""}`);
+            } catch (err) {
+                console.warn("Failed to parse PGN:", err);
+                return [];
+            }
+        }
+
+        function dbWinner(result) {
+            if (result === "1-0") return "white";
+            if (result === "0-1") return "black";
+            if (result === "1/2-1/2") return "draw";
+            return null;
+        }
+
+        function dbRowToResult(row) {
+            const winner = dbWinner(row.result);
+            if (!winner) return null;
+            const loser = winner === "white" ? "black" : winner === "black" ? "white" : null;
+            const endedAt = Number(row.ended_at) || Date.now();
+            return {
+                winner,
+                loser,
+                reason: row.reason || "normal",
+                endedAt,
+            };
+        }
+
+        async function deleteGameDb(gameId) {
+            if (!isAdmin) return;
+            const ok = await confirmAction("Delete game?", `Delete game #${gameId}? This cannot be undone.`, "Delete", "danger");
+            if (!ok) return;
+            try {
+                const res = await fetch(`${API_BASE}/api/gamesdb/${gameId}`, {
+                    method: "DELETE",
+                    headers: authHeaders(),
+                });
+                if (res.status === 401) return handleLogout();
+                if (!res.ok) throw new Error(await res.text());
+                dbRows = dbRows.filter((g) => Number(g.id) !== Number(gameId));
+                renderGamesDb();
+                showInfo("Game Database", `Deleted game #${gameId}.`);
+            } catch (err) {
+                console.error("Delete game failed:", err);
+                showInfo("Game Database", "Failed to delete game.");
+            }
+        }
+
+        function dbRowToInitialGame(row) {
+            const whiteElo = coalesce(row.white_elo, row.white_elo_current, 0);
+            const blackElo = coalesce(row.black_elo, row.black_elo_current, 0);
+            const white = {
+                id: row.white_id || null,
+                username: row.white_username || "Waiting...",
+                elo: Number(whiteElo) || 0,
+                is_bot: Number(row.white_is_bot) || 0,
+            };
+            const black = {
+                id: row.black_id || null,
+                username: row.black_username || "Waiting...",
+                elo: Number(blackElo) || 0,
+                is_bot: Number(row.black_is_bot) || 0,
+            };
+            const moves = movesFromPgn(row.pgn);
+            return {
+                id: row.id,
+                status: "finished",
+                players: { white, black },
+                timeControl: {
+                    base: Number(row.time_base) || 0,
+                    increment: Number(row.time_increment) || 0,
+                },
+                moves,
+                result: dbRowToResult(row),
+                drawOffer: null,
+                clock: null,
+                serverNow: Date.now(),
+            };
+        }
+
+        async function openDbGame(id) {
+            const token = localStorage.getItem("token");
+            if (!token) return;
+            try {
+                // Prefer the serialized game snapshot (includes moves array).
+                const res = await fetch(`${API_BASE}/api/games/${id}`, { headers: authHeaders() });
+                if (res.status === 401) return handleLogout();
+                if (res.ok) {
+                    const game = await res.json();
+                    gv.suppressResultModal = true;
+                    await openGameView(game.id, { mode: "spectate", initialGame: game });
+                    renderGameView(game);
+                    return;
+                }
+
+                // Fallback to DB row -> PGN parsing if snapshot isn't available.
+                const dbRes = await fetch(`${API_BASE}/api/gamesdb/${id}`, { headers: authHeaders() });
+                if (dbRes.status === 401) return handleLogout();
+                const data = await dbRes.json().catch(() => ({}));
+                if (!dbRes.ok) throw new Error(data.error || "Failed to load game");
+                const initialGame = dbRowToInitialGame(data.game);
+                gv.suppressResultModal = true;
+                await openGameView(initialGame.id, { mode: "spectate", initialGame });
+                renderGameView(initialGame);
+            } catch (err) {
+                console.error("Open game failed:", err);
+                showInfo("Game Database", "Failed to open game.");
+            }
+        }
+
+        async function viewGamePgn(id) {
+            const token = localStorage.getItem("token");
+            if (!token) return;
+            try {
+                const res = await fetch(`${API_BASE}/api/gamesdb/${id}`, { headers: authHeaders() });
+                if (res.status === 401) return handleLogout();
+                const data = await res.json().catch(() => ({}));
+                if (!res.ok) throw new Error(data.error || "Failed to load PGN");
+                const g = data.game;
+                const meta = `Game #${g.id} | ${formatDateTime(g.ended_at || g.created_at)} | ${g.white_username} vs ${g.black_username} | ${g.result}`;
+                openPgnModal(meta, g.pgn);
+            } catch (err) {
+                console.error("PGN load error:", err);
+                showInfo("Game Database", "Failed to load PGN.");
+            }
+        }
+
+        async function fetchAdminUsers() {
+            const token = localStorage.getItem("token");
+            if (!token || !isAdmin) return;
 
             try {
                 const res = await fetch(`${API_BASE}/api/admin/users`, {
@@ -985,91 +2788,1053 @@ input[type="range"]::-webkit-slider-thumb:hover { transform: scale(1.2); }
                     return;
                 }
 
-                const users = await res.json();
-                const tbody = document.querySelector("#adminUsersTable tbody");
-                tbody.innerHTML = "";
-
-                users.forEach(u => {
-                    const tr = document.createElement("tr");
-                    tr.innerHTML = `
-                        <td class="text-slate-600 font-mono text-xs">${u.id}</td>
-                        <td>
-                            <input class="admin-input editUsername w-full"
-                                data-id="${u.id}"
-                                value="${u.username}">
-                        </td>
-                        <td>
-                            <input class="admin-input editElo w-24"
-                                type="number"
-                                data-id="${u.id}"
-                                value="${u.elo}">
-                        </td>
-                        <td class="text-center">
-                            <input type="checkbox"
-                                class="editLocked w-5 h-5 accent-rose-500"
-                                data-id="${u.id}"
-                                ${u.locked ? "checked" : ""}>
-                        </td>
-                        <td>
-                            <button class="deleteUser delete-btn" data-id="${u.id}">
-                                Delete
-                            </button>
-                        </td>
-                    `;
-                    tbody.appendChild(tr);
-                });
-
+                const data = await res.json().catch(() => []);
+                adminRows = Array.isArray(data) ? data : [];
+                adminPage = 1;
+                adminSelectedIds.clear();
+                renderAdminUsers();
             } catch (err) {
                 console.error("Admin users error:", err);
             }
         }
 
-
-        document.addEventListener("input", async (e)=>{
-            if(e.target.classList.contains("editUsername") || e.target.classList.contains("editElo") || e.target.classList.contains("editLocked")){
-                const token = localStorage.getItem("token");
-                const id = e.target.dataset.id;
-                const payload = {};
-                const row = e.target.closest("tr");
-                payload.username = row.querySelector(".editUsername").value;
-                payload.elo = parseInt(row.querySelector(".editElo").value,10);
-                payload.locked = row.querySelector(".editLocked").checked;
-                
-                await fetch(`${API_BASE}/api/admin/users/${id}/edit`,{
-                    method:"POST",
-                    headers:{"Content-Type":"application/json","Authorization":`Bearer ${token}`},
-                    body:JSON.stringify(payload)
+        async function adminGameAction(path, label) {
+            const statusEl = document.getElementById("admin-game-status");
+            if (statusEl) statusEl.textContent = `${label}...`;
+            try {
+                const res = await fetch(`${API_BASE}/api/admin/games/${path}`, {
+                    method: "POST",
+                    headers: authHeaders(),
                 });
-                fetchLeaderboard();
+                if (res.status === 401) return handleLogout();
+                if (!res.ok) throw new Error(await res.text());
+                if (statusEl) statusEl.textContent = `${label} OK`;
+                fetchHomepage();
+            } catch (err) {
+                console.error("Admin games action failed:", err);
+                if (statusEl) statusEl.textContent = "Error";
             }
-        });
+        }
 
-        document.addEventListener("click", async (e)=>{
-            if(e.target.classList.contains("deleteUser")){
-                const token = localStorage.getItem("token");
-                const id = e.target.dataset.id;
-                if(!confirm("Are you sure you want to delete this user?")) return;
-                
-                await fetch(`${API_BASE}/api/admin/users/${id}`, {
-                    method:"DELETE",
-                    headers:{"Authorization":`Bearer ${token}`}
+        function adminPauseGames() { adminGameAction("pause", "Paused"); }
+        function adminResumeGames() { adminGameAction("resume", "Resumed"); }
+        function adminStopGames() { adminGameAction("stop", "Stopped"); }
+
+        async function adminSaveAll() {
+            const statusEl = document.getElementById("admin-save-all-status");
+            const rows = Array.from(document.querySelectorAll("#adminUsersTable tbody tr"));
+            if (!rows.length) return;
+            const dirtyRows = rows.filter((row) => row.classList.contains("pending-save"));
+            if (!dirtyRows.length) {
+                if (statusEl) statusEl.textContent = "No changes to save.";
+                return;
+            }
+            if (statusEl) statusEl.textContent = `Saving ${dirtyRows.length} user(s)...`;
+            let failed = 0;
+            for (const row of dirtyRows) {
+                const ok = await saveAdminRow(row);
+                if (!ok) failed += 1;
+            }
+            if (statusEl) {
+                statusEl.textContent = failed === 0
+                    ? "All changes saved."
+                    : `Saved ${dirtyRows.length - failed}/${dirtyRows.length}. Some failed.`;
+            }
+            if (failed > 0) {
+                console.error(`Admin Save All: ${failed} row(s) failed. See errors above.`);
+            }
+            // Refresh from server so the table reflects stored values.
+            await fetchAdminUsers();
+        }
+
+        function renderAdminUsers() {
+            const tbody = document.querySelector("#adminUsersTable tbody");
+            const pager = document.getElementById("admin-pager");
+            if (!tbody) return;
+            let rows = adminRows;
+            if (adminSearchTerm) {
+                const term = adminSearchTerm.toLowerCase();
+                rows = adminRows.filter((u) => {
+                    return String(u.id).includes(term) || String(u.username || "").toLowerCase().includes(term);
                 });
+            }
+            if (!rows.length) {
+                tbody.innerHTML = `<tr><td colspan="13" class="text-slate-500">No users found.</td></tr>`;
+                if (pager) pager.innerHTML = "";
+                return;
+            }
+            const totalPages = Math.max(1, Math.ceil(rows.length / adminPageSize));
+            adminPage = Math.min(adminPage, totalPages);
+            const start = (adminPage - 1) * adminPageSize;
+            const items = rows.slice(start, start + adminPageSize);
+
+            tbody.innerHTML = "";
+            items.forEach(u => {
+                const isAdminRow = !!u.is_admin;
+                const disabledAttr = "";
+                const deleteCell = isAdminRow
+                    ? `<span class="text-slate-600 font-bold">Admin</span>`
+                    : `<button class="deleteUser delete-btn" data-id="${u.id}" data-admin="${isAdminRow ? 1 : 0}">Delete</button>`;
+                const tr = document.createElement("tr");
+                tr.dataset.id = u.id;
+                tr.dataset.original = JSON.stringify({
+                    username: u.username || "",
+                    bio: u.bio || "",
+                    elo: Number(u.elo) || 0,
+                    locked: !!u.locked,
+                    is_bot: !!u.is_bot,
+                    is_admin: !!u.is_admin,
+                    bot_uci_elo: Number(u.bot_uci_elo) || 0,
+                    bot_movetime: Number(u.bot_movetime) || 0,
+                    created_at: formatDateInput(u.created_at) || "",
+                });
+                tr.innerHTML = `
+                    <td class="text-center">
+                        <input type="checkbox"
+                            class="admin-select-user w-4 h-4 accent-indigo-500"
+                            data-id="${u.id}"
+                            ${adminSelectedIds.has(u.id) ? "checked" : ""}>
+                    </td>
+                    <td class="text-slate-600 font-mono text-xs">${u.id}</td>
+                    <td>
+                        <input class="admin-input editUsername w-full"
+                            data-id="${u.id}"
+                            ${disabledAttr}
+                            value="${escapeHtml(u.username)}">
+                    </td>
+                    <td>
+                        <input class="admin-input editBio w-full"
+                            data-id="${u.id}"
+                            ${disabledAttr}
+                            value="${escapeHtml(u.bio || "")}">
+                    </td>
+                    <td>
+                        <input class="admin-input editElo w-24"
+                            type="number"
+                            data-id="${u.id}"
+                            ${disabledAttr}
+                            value="${u.elo}">
+                    </td>
+                    <td class="text-center">
+                        <input type="checkbox"
+                            class="editBot w-5 h-5 accent-emerald-500"
+                            data-id="${u.id}"
+                            ${u.is_bot ? "checked" : ""}
+                            ${disabledAttr}>
+                    </td>
+                    <td class="text-center">
+                        <input type="checkbox"
+                            class="editLocked w-5 h-5 accent-rose-500"
+                            data-id="${u.id}"
+                            ${u.locked ? "checked" : ""}
+                            ${disabledAttr}>
+                    </td>
+                    <td class="text-center">
+                        <input type="checkbox"
+                            class="editAdmin w-5 h-5 accent-red-500"
+                            data-id="${u.id}"
+                            ${u.is_admin ? "checked" : ""}
+                            ${disabledAttr}>
+                    </td>
+                    <td>
+                        <input class="admin-input editBotUci w-24"
+                            type="number"
+                            data-id="${u.id}"
+                            ${disabledAttr}
+                            value="${u.bot_uci_elo || 0}">
+                    </td>
+                    <td>
+                        <input class="admin-input editBotMove w-24"
+                            type="number"
+                            data-id="${u.id}"
+                            ${disabledAttr}
+                            value="${u.bot_movetime || 0}">
+                    </td>
+                    <td>
+                        <input class="admin-input editPassword w-full"
+                            type="password"
+                            data-id="${u.id}"
+                            ${disabledAttr}
+                            placeholder="New password">
+                    </td>
+                    <td>
+                        <input class="admin-input editCreated date-input w-32"
+                            data-id="${u.id}"
+                            ${disabledAttr}
+                            value="${formatDateInput(u.created_at)}"
+                            readonly>
+                    </td>
+                    <td>
+                        ${deleteCell}
+                        <span class="admin-save-status ml-3 text-xs text-slate-500"></span>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+
+            renderPager(pager, adminPage, totalPages, (page) => {
+                adminPage = page;
+                renderAdminUsers();
+            });
+            updateAdminSelectAllState();
+        }
+
+        function getSelectedAdminIds() {
+            return Array.from(adminSelectedIds.values());
+        }
+
+        function updateAdminSelectAllState() {
+            const selectAll = document.getElementById("admin-select-all");
+            if (!selectAll) return;
+            const all = Array.from(document.querySelectorAll(".admin-select-user"));
+            const checked = all.filter((el) => el.checked);
+            selectAll.checked = all.length > 0 && checked.length === all.length;
+            selectAll.indeterminate = checked.length > 0 && checked.length < all.length;
+        }
+
+        async function applyBulkAdminUpdate() {
+            const statusEl = document.getElementById("admin-bulk-status");
+            const ids = getSelectedAdminIds();
+            if (ids.length === 0) {
+                if (statusEl) statusEl.textContent = "Select at least one user.";
+                return;
+            }
+
+            const payload = {};
+            const applyElo = document.getElementById("admin-bulk-apply-elo")?.checked;
+            const applyLocked = document.getElementById("admin-bulk-apply-locked")?.checked;
+            const applyBot = document.getElementById("admin-bulk-apply-bot")?.checked;
+            const applyAdmin = document.getElementById("admin-bulk-apply-admin")?.checked;
+            const applyCreated = document.getElementById("admin-bulk-apply-created")?.checked;
+
+            if (applyElo) {
+                const raw = document.getElementById("admin-bulk-elo")?.value || "";
+                const elo = Number.parseInt(raw, 10);
+                if (!Number.isFinite(elo) || elo < 0) {
+                    if (statusEl) statusEl.textContent = "Invalid ELO value.";
+                    return;
+                }
+                payload.elo = elo;
+            }
+            if (applyLocked) payload.locked = !!document.getElementById("admin-bulk-locked")?.checked;
+            if (applyBot) payload.is_bot = !!document.getElementById("admin-bulk-bot")?.checked;
+            if (applyAdmin) payload.is_admin = !!document.getElementById("admin-bulk-admin")?.checked;
+            if (applyCreated) {
+                const dateInput = document.getElementById("admin-bulk-created")?.value || "";
+                if (!dateInput) {
+                    if (statusEl) statusEl.textContent = "Pick a created date.";
+                    return;
+                }
+                payload.created_at = parseDateInput(dateInput);
+            }
+
+            if (Object.keys(payload).length === 0) {
+                if (statusEl) statusEl.textContent = "Choose at least one field to update.";
+                return;
+            }
+
+            if (statusEl) statusEl.textContent = `Updating ${ids.length} user(s)...`;
+            const token = localStorage.getItem("token");
+            if (!token || !isAdmin) return;
+
+            const results = await Promise.allSettled(ids.map((id) =>
+                fetch(`${API_BASE}/api/admin/users/${id}`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
+                    body: JSON.stringify(payload)
+                })
+            ));
+
+            const failed = results.filter((r) => r.status !== "fulfilled" || !r.value.ok).length;
+            if (statusEl) {
+                statusEl.textContent = failed === 0
+                    ? `Updated ${ids.length} user(s).`
+                    : `Updated ${ids.length - failed}/${ids.length} user(s).`;
+            }
+            fetchAdminUsers();
+            fetchLeaderboard();
+        }
+
+        async function createAdminUser() {
+            if (!isAdmin) return;
+            const usernameEl = document.getElementById("admin-new-username");
+            const passwordEl = document.getElementById("admin-new-password");
+            const eloEl = document.getElementById("admin-new-elo");
+            const botEl = document.getElementById("admin-new-bot");
+            const lockedEl = document.getElementById("admin-new-locked");
+            const statusEl = document.getElementById("admin-create-status");
+
+            const username = usernameEl?.value?.trim() || "";
+            const password = passwordEl?.value || "";
+            const elo = parseInt(eloEl?.value || "1200", 10);
+            const is_bot = !!botEl?.checked;
+            const locked = !!lockedEl?.checked;
+
+            if (!username || !password) {
+                if (statusEl) statusEl.textContent = "Missing username or password.";
+                return;
+            }
+            if (statusEl) statusEl.textContent = "Creating...";
+
+            try {
+                const res = await fetch(`${API_BASE}/api/admin/users`, {
+                    method: "POST",
+                    headers: authHeaders(),
+                    body: JSON.stringify({ username, password, elo, is_bot, locked }),
+                });
+                const data = await res.json().catch(() => ({}));
+                if (!res.ok) throw new Error(data.error || "Create failed");
+                if (statusEl) statusEl.textContent = "Created";
+                if (passwordEl) passwordEl.value = "";
+                if (usernameEl) usernameEl.value = "";
                 fetchAdminUsers();
                 fetchLeaderboard();
+            } catch (err) {
+                console.error("Admin create failed:", err);
+                if (statusEl) statusEl.textContent = err.message || "Error";
+            }
+        }
+
+        const adminCreateBtn = document.getElementById("admin-create-user");
+        if (adminCreateBtn) adminCreateBtn.onclick = createAdminUser;
+        const adminBulkBtn = document.getElementById("admin-bulk-apply");
+        if (adminBulkBtn) adminBulkBtn.onclick = applyBulkAdminUpdate;
+        const adminSearchInput = document.getElementById("admin-search");
+        if (adminSearchInput) {
+            adminSearchInput.addEventListener("input", (e) => {
+                adminSearchTerm = String(e.target.value || "").trim();
+                adminPage = 1;
+                renderAdminUsers();
+            });
+        }
+
+        document.addEventListener("change", (e) => {
+            if (e.target?.id === "admin-select-all") {
+                const checked = !!e.target.checked;
+                document.querySelectorAll(".admin-select-user").forEach((el) => {
+                    el.checked = checked;
+                    const id = Number(el.dataset.id);
+                    if (!Number.isFinite(id)) return;
+                    if (checked) adminSelectedIds.add(id);
+                    else adminSelectedIds.delete(id);
+                });
+                updateAdminSelectAllState();
+            }
+            if (e.target?.classList?.contains("admin-select-user")) {
+                const id = Number(e.target.dataset.id);
+                if (Number.isFinite(id)) {
+                    if (e.target.checked) adminSelectedIds.add(id);
+                    else adminSelectedIds.delete(id);
+                }
+                updateAdminSelectAllState();
             }
         });
 
+        let adminRows = [];
+        let adminPage = 1;
+        const adminPageSize = 10;
+        const adminSelectedIds = new Set();
+        let adminSearchTerm = "";
+
+        let communityRows = [];
+        let communityPage = 1;
+        const communityPageSize = 12;
+
+        let dbRows = [];
+        let dbPage = 1;
+        const dbPageSize = 12;
+
+        let currentUserId = null;
+        let profileData = null;
+        let profileIsSelf = true;
+        let profileGames = [];
+        let profilePage = 1;
+        let profilePageSize = 5;
+
+        function openProfileModal() {
+            const modal = document.getElementById("profile-modal");
+            if (!modal) return;
+            modal.style.display = "flex";
+            profileIsSelf = true;
+            loadProfile();
+        }
+
+        function openProfileForUser(userId) {
+            const modal = document.getElementById("profile-modal");
+            if (!modal) return;
+            modal.style.display = "flex";
+            const numericId = Number(userId);
+            if (currentUserId && Number.isFinite(numericId) && numericId === currentUserId) {
+                profileIsSelf = true;
+                loadProfile();
+                return;
+            }
+            profileIsSelf = false;
+            loadProfileById(userId);
+        }
+
+        function closeProfileModal() {
+            const modal = document.getElementById("profile-modal");
+            if (modal) modal.style.display = "none";
+        }
+
+        function formatDateShort(ts) {
+            if (!ts) return "Unknown";
+            const d = new Date(ts);
+            if (Number.isNaN(d.getTime())) return "Unknown";
+            return d.toLocaleDateString();
+        }
+
+        function formatDateInput(ts) {
+            if (!ts) return "";
+            const d = new Date(ts);
+            if (Number.isNaN(d.getTime())) return "";
+            const y = d.getFullYear();
+            const m = String(d.getMonth() + 1).padStart(2, "0");
+            const day = String(d.getDate()).padStart(2, "0");
+            return `${y}-${m}-${day}`;
+        }
+
+        function parseDateInput(value) {
+            if (!value) return 0;
+            const m = String(value).match(/^(\d{4})-(\d{2})-(\d{2})$/);
+            if (!m) return 0;
+            const d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+            return d.getTime();
+        }
+
+        function updateProfileStatus() {
+            const statusEl = document.getElementById("profile-status");
+            const onlineEl = document.getElementById("profile-online");
+            const online = profileIsSelf
+                ? (socket ? !!socket.connected : true)
+                : !!profileData?.online;
+            if (statusEl) {
+                statusEl.textContent = online ? "Online" : "Offline";
+                statusEl.classList.toggle("offline", !online);
+            }
+            if (onlineEl) onlineEl.textContent = online ? "Online" : "Offline";
+        }
+
+        async function loadProfile() {
+            const token = localStorage.getItem("token");
+            if (!token) return;
+            try {
+                const res = await fetch(`${API_BASE}/api/me`, { headers: authHeaders() });
+                if (res.status === 401) return handleLogout();
+                if (!res.ok) return;
+                profileData = await res.json();
+                const userEl = document.getElementById("profile-username");
+                const createdEl = document.getElementById("profile-created");
+                const eloEl = document.getElementById("profile-elo");
+                const bioEl = document.getElementById("profile-bio");
+
+                if (userEl) userEl.textContent = profileData.username || "Profile";
+                if (createdEl) createdEl.textContent = formatDateShort(profileData.createdAt);
+                if (eloEl) eloEl.textContent = String(coalesce(profileData.elo, 0));
+                if (bioEl) bioEl.value = profileData.bio || "";
+                updateProfileStatus();
+                updateProfileEditability();
+                await loadProfileGames();
+            } catch (err) {
+                console.error("Profile load failed:", err);
+            }
+        }
+
+        async function loadProfileById(userId) {
+            const token = localStorage.getItem("token");
+            if (!token) return;
+            try {
+                const res = await fetch(`${API_BASE}/api/community?id=${encodeURIComponent(userId)}`, { headers: authHeaders() });
+                if (res.status === 401) return handleLogout();
+                const data = await res.json().catch(() => ({}));
+                const user = Array.isArray(data.users) ? data.users[0] : null;
+                if (!user) return;
+                profileData = {
+                    id: user.id,
+                    username: user.username,
+                    elo: user.elo,
+                    bio: user.bio,
+                    createdAt: user.created_at,
+                    online: !!user.online
+                };
+                if (currentUserId && Number(user.id) === Number(currentUserId)) {
+                    profileIsSelf = true;
+                }
+                const userEl = document.getElementById("profile-username");
+                const createdEl = document.getElementById("profile-created");
+                const eloEl = document.getElementById("profile-elo");
+                const bioEl = document.getElementById("profile-bio");
+
+                if (userEl) userEl.textContent = profileData.username || "Profile";
+                if (createdEl) createdEl.textContent = formatDateShort(profileData.createdAt);
+                if (eloEl) eloEl.textContent = String(coalesce(profileData.elo, 0));
+                if (bioEl) bioEl.value = profileData.bio || "";
+                updateProfileStatus();
+                updateProfileEditability();
+                await loadProfileGames();
+            } catch (err) {
+                console.error("Profile load failed:", err);
+            }
+        }
+
+        async function saveProfileBio() {
+            if (!profileIsSelf) return;
+            const token = localStorage.getItem("token");
+            if (!token) return;
+            const statusEl = document.getElementById("profile-bio-status");
+            const bioEl = document.getElementById("profile-bio");
+            if (statusEl) statusEl.textContent = "Saving...";
+            try {
+                const res = await fetch(`${API_BASE}/api/me`, {
+                    method: "PATCH",
+                    headers: authHeaders(),
+                    body: JSON.stringify({ bio: bioEl?.value || "" }),
+                });
+                if (res.status === 401) return handleLogout();
+                const data = await res.json().catch(() => ({}));
+                if (!res.ok) throw new Error(data.error || "Save failed");
+                if (statusEl) statusEl.textContent = "Saved";
+            } catch (err) {
+                console.error("Bio save failed:", err);
+                if (statusEl) statusEl.textContent = err.message || "Error";
+            }
+        }
+
+        async function loadProfileGames() {
+            if (!profileData?.id) return;
+            try {
+                const res = await fetch(`${API_BASE}/api/gamesdb?user=${profileData.id}&limit=200&include_pgn=1`, { headers: authHeaders() });
+                if (res.status === 401) return handleLogout();
+                const data = await res.json().catch(() => ({}));
+                profileGames = Array.isArray(data.games) ? data.games : [];
+                profilePage = 1;
+                renderProfileGraph();
+                renderProfileHistory();
+            } catch (err) {
+                console.error("Profile games load failed:", err);
+            }
+        }
+
+        function updateProfileEditability() {
+            const bioEl = document.getElementById("profile-bio");
+            const statusEl = document.getElementById("profile-bio-status");
+            const saveBtn = document.querySelector('#profile-modal .profile-bio .action-btn');
+            if (bioEl) {
+                bioEl.readOnly = !profileIsSelf;
+                bioEl.classList.toggle("opacity-50", !profileIsSelf);
+            }
+            if (saveBtn) saveBtn.style.display = profileIsSelf ? "inline-flex" : "none";
+            if (statusEl && !profileIsSelf) statusEl.textContent = "";
+        }
+
+        function getPlayerEloFromGame(game) {
+            if (!profileData?.id) return null;
+            const isWhite = Number(game.white_id) === Number(profileData.id);
+            if (isWhite) {
+                const fromPgn = parsePgnHeader(game.pgn, "WhiteElo");
+                return Number(fromPgn) || coalesce(game.white_elo, game.white_elo_current, null);
+            }
+            const isBlack = Number(game.black_id) === Number(profileData.id);
+            if (isBlack) {
+                const fromPgn = parsePgnHeader(game.pgn, "BlackElo");
+                return Number(fromPgn) || coalesce(game.black_elo, game.black_elo_current, null);
+            }
+            return null;
+        }
+
+        function renderProfileGraph() {
+            const svg = document.getElementById("profile-elo-graph");
+            if (!svg) return;
+            svg.innerHTML = "";
+            if (!profileGames.length) return;
+            const points = profileGames
+                .slice()
+                .reverse()
+                .map((g) => ({ t: g.ended_at || g.created_at || 0, elo: getPlayerEloFromGame(g) }))
+                .filter((p) => Number.isFinite(p.elo));
+            if (!points.length) return;
+            const minElo = Math.min(...points.map((p) => p.elo));
+            const maxElo = Math.max(...points.map((p) => p.elo));
+            const pad = 20;
+            const w = 600;
+            const h = 140;
+            const range = Math.max(1, maxElo - minElo);
+            const step = points.length > 1 ? (w - pad * 2) / (points.length - 1) : 0;
+            const coords = points.map((p, i) => {
+                const x = pad + i * step;
+                const y = h - pad - ((p.elo - minElo) / range) * (h - pad * 2);
+                return `${x},${y}`;
+            });
+            const poly = document.createElementNS("http://www.w3.org/2000/svg", "polyline");
+            poly.setAttribute("fill", "none");
+            poly.setAttribute("stroke", "#22c55e");
+            poly.setAttribute("stroke-width", "3");
+            poly.setAttribute("points", coords.join(" "));
+            svg.appendChild(poly);
+        }
+
+        function renderProfileHistory() {
+            const container = document.getElementById("profile-history");
+            const pager = document.getElementById("profile-pager");
+            if (!container) return;
+
+            const totalPages = Math.max(1, Math.ceil(profileGames.length / profilePageSize));
+            profilePage = Math.min(profilePage, totalPages);
+            const start = (profilePage - 1) * profilePageSize;
+            const items = profileGames.slice(start, start + profilePageSize);
+
+            container.innerHTML = "";
+            items.forEach((g) => {
+                const isWhite = Number(g.white_id) === Number(profileData?.id);
+                const opponent = isWhite ? g.black_username : g.white_username;
+                const result = g.result || "*";
+                const time = `${g.time_base || 0}+${g.time_increment || 0}`;
+                const row = document.createElement("div");
+                row.className = "profile-history-row";
+                row.innerHTML = `
+                    <div><div>${escapeHtml(opponent || "Unknown")}</div><div class="muted">${time}</div></div>
+                    <div>${result}</div>
+                    <div>${formatDateShort(g.ended_at || g.created_at)}</div>
+                    <div class="muted">#${g.id}</div>
+                `;
+                container.appendChild(row);
+            });
+
+            renderPager(pager, profilePage, totalPages, (page) => {
+                profilePage = page;
+                renderProfileHistory();
+            });
+        }
+
+        window.addEventListener("resize", () => {
+            const modal = document.getElementById("profile-modal");
+            if (modal?.style?.display === "flex") renderProfileHistory();
+        });
+
+        if (socket) {
+            socket.on("connect", updateProfileStatus);
+            socket.on("disconnect", updateProfileStatus);
+            socket.on("presence", (payload) => {
+                const id = Number(payload?.userId);
+                if (profileData && Number(profileData.id) === id) {
+                    profileData.online = !!payload?.online;
+                    updateProfileStatus();
+                }
+            });
+        }
+
+        function openSettingsModal() {
+            const modal = document.getElementById("settings-modal");
+            if (!modal) return;
+            modal.style.display = "flex";
+            loadSettings();
+        }
+
+        function closeSettingsModal() {
+            const modal = document.getElementById("settings-modal");
+            if (modal) modal.style.display = "none";
+        }
+
+        async function loadSettings() {
+            const token = localStorage.getItem("token");
+            if (!token) return;
+            try {
+                const res = await fetch(`${API_BASE}/api/me`, { headers: authHeaders() });
+                if (res.status === 401) return handleLogout();
+                if (!res.ok) return;
+                const me = await res.json();
+                const userEl = document.getElementById("settings-username");
+                const hintEl = document.getElementById("settings-username-hint");
+                if (userEl) userEl.value = me.username || "";
+                if (hintEl) {
+                    const count = me.usernameChangeCount || 0;
+                    hintEl.textContent = `Username changes used in last 14 days: ${count}/2`;
+                }
+            } catch (err) {
+                console.error("Settings load failed:", err);
+            }
+        }
+
+        async function saveSettings() {
+            const token = localStorage.getItem("token");
+            if (!token) return;
+            const userEl = document.getElementById("settings-username");
+            const passEl = document.getElementById("settings-password");
+            const passConfirmEl = document.getElementById("settings-password-confirm");
+            const statusEl = document.getElementById("settings-status");
+        const payload = {};
+        const username = userEl?.value?.trim() || "";
+        const password = passEl?.value || "";
+        const passwordConfirm = passConfirmEl?.value || "";
+        if (userEl && username) payload.username = username;
+        if (userEl && userEl.value !== "" && username === "") {
+            if (statusEl) statusEl.textContent = "Username cannot be empty.";
+            return;
+        }
+            if (password || passwordConfirm) {
+                payload.password = password;
+                payload.passwordConfirm = passwordConfirm;
+            }
+            if (statusEl) statusEl.textContent = "Saving...";
+            try {
+                const res = await fetch(`${API_BASE}/api/me`, {
+                    method: "PATCH",
+                    headers: authHeaders(),
+                    body: JSON.stringify(payload),
+                });
+                if (res.status === 401) return handleLogout();
+                const data = await res.json().catch(() => ({}));
+                if (!res.ok) throw new Error(data.error || "Save failed");
+                if (statusEl) statusEl.textContent = "Saved";
+                if (passEl) passEl.value = "";
+                if (passConfirmEl) passConfirmEl.value = "";
+                loadSettings();
+                loadProfile();
+            } catch (err) {
+                console.error("Settings save failed:", err);
+                if (statusEl) statusEl.textContent = err.message || "Error";
+            }
+        }
+
+        async function fetchCommunityUsers() {
+            const token = localStorage.getItem("token");
+            if (!token) return;
+            try {
+                const id = document.getElementById("community-id")?.value || "";
+                const user = document.getElementById("community-user")?.value || "";
+                const from = document.getElementById("community-from")?.value || "";
+                const to = document.getElementById("community-to")?.value || "";
+                const query = new URLSearchParams();
+                if (id) query.set("id", id);
+                if (user) query.set("user", user);
+                if (from) query.set("from", from);
+                if (to) query.set("to", to);
+                const res = await fetch(`${API_BASE}/api/community?${query.toString()}`, { headers: authHeaders() });
+                if (res.status === 401) return handleLogout();
+                if (!res.ok) return;
+                const data = await res.json().catch(() => ({}));
+                communityRows = Array.isArray(data.users) ? data.users : [];
+                communityPage = 1;
+                renderCommunityUsers();
+            } catch (err) {
+                console.error("Community fetch failed:", err);
+            }
+        }
+
+        function renderCommunityUsers() {
+            const tbody = document.querySelector("#communityTable tbody");
+            const pager = document.getElementById("community-pager");
+            if (!tbody) return;
+            if (!communityRows.length) {
+                tbody.innerHTML = `<tr><td colspan="5" class="text-slate-500">No users found.</td></tr>`;
+                if (pager) pager.innerHTML = "";
+                return;
+            }
+            const totalPages = Math.max(1, Math.ceil(communityRows.length / communityPageSize));
+            communityPage = Math.min(communityPage, totalPages);
+            const start = (communityPage - 1) * communityPageSize;
+            const items = communityRows.slice(start, start + communityPageSize);
+            tbody.innerHTML = "";
+            items.forEach((u) => {
+                const tr = document.createElement("tr");
+                tr.className = "community-row";
+                tr.onclick = () => openProfileForUser(u.id);
+                tr.innerHTML = `
+                    <td class="text-slate-400 font-mono text-xs">${u.id}</td>
+                    <td class="text-white">${escapeHtml(u.username)}</td>
+                    <td>${coalesce(u.elo, 0)}</td>
+                    <td class="text-slate-400 text-xs">${formatDateShort(u.created_at)}</td>
+                    <td class="text-slate-400 text-xs">${escapeHtml(u.bio || "")}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+            renderPager(pager, communityPage, totalPages, (page) => {
+                communityPage = page;
+                renderCommunityUsers();
+            });
+        }
+
+        function parsePgnHeader(pgn, key) {
+            if (!pgn || !key) return null;
+            const re = new RegExp(`\\[${key}\\s+\\\"([^\\\"]*)\\\"\\]`, "i");
+            const m = String(pgn).match(re);
+            return m ? m[1] : null;
+        }
+
+        const datePickerEl = document.getElementById("date-picker");
+        const datePickerState = { input: null, year: null, month: null, value: "" };
+        const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+        function renderDatePicker() {
+            if (!datePickerEl) return;
+            const year = datePickerState.year;
+            const month = datePickerState.month;
+            if (year == null || month == null) return;
+
+            const firstDay = new Date(year, month, 1);
+            const startDay = firstDay.getDay(); // 0=Sun
+            const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+            datePickerEl.innerHTML = `
+                <div class="date-picker-header">
+                    <button class="date-picker-nav" data-dp="prev" aria-label="Previous month">‹</button>
+                    <div>${monthNames[month]} ${year}</div>
+                    <button class="date-picker-nav" data-dp="next" aria-label="Next month">›</button>
+                </div>
+                <div class="date-picker-grid" id="date-picker-grid"></div>
+            `;
+
+            const grid = datePickerEl.querySelector("#date-picker-grid");
+            const days = ["S","M","T","W","T","F","S"];
+            days.forEach((d) => {
+                const el = document.createElement("div");
+                el.className = "date-day muted";
+                el.textContent = d;
+                grid.appendChild(el);
+            });
+
+            for (let i = 0; i < startDay; i++) {
+                const el = document.createElement("div");
+                el.className = "date-day disabled";
+                el.textContent = "";
+                grid.appendChild(el);
+            }
+            for (let day = 1; day <= daysInMonth; day++) {
+                const el = document.createElement("div");
+                el.className = "date-day";
+                const dateStr = `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+                el.textContent = String(day);
+                if (dateStr === datePickerState.value) el.classList.add("selected");
+                el.onclick = () => {
+                    if (!datePickerState.input) return;
+                    datePickerState.input.value = dateStr;
+                    datePickerState.input.dispatchEvent(new Event("input", { bubbles: true }));
+                    closeDatePicker();
+                };
+                grid.appendChild(el);
+            }
+
+            datePickerEl.querySelector('[data-dp="prev"]').onclick = () => {
+                const d = new Date(year, month - 1, 1);
+                datePickerState.year = d.getFullYear();
+                datePickerState.month = d.getMonth();
+                renderDatePicker();
+            };
+            datePickerEl.querySelector('[data-dp="next"]').onclick = () => {
+                const d = new Date(year, month + 1, 1);
+                datePickerState.year = d.getFullYear();
+                datePickerState.month = d.getMonth();
+                renderDatePicker();
+            };
+        }
+
+        function openDatePicker(input) {
+            if (!datePickerEl || !input) return;
+            const current = input.value || formatDateInput(Date.now());
+            const parsed = parseDateInput(current) || Date.now();
+            const d = new Date(parsed);
+            datePickerState.input = input;
+            datePickerState.year = d.getFullYear();
+            datePickerState.month = d.getMonth();
+            datePickerState.value = current;
+            renderDatePicker();
+
+            const rect = input.getBoundingClientRect();
+            datePickerEl.style.top = `${Math.min(window.innerHeight - 260, rect.bottom + 8)}px`;
+            datePickerEl.style.left = `${Math.min(window.innerWidth - 260, rect.left)}px`;
+            datePickerEl.style.display = "block";
+        }
+
+        function closeDatePicker() {
+            if (!datePickerEl) return;
+            datePickerEl.style.display = "none";
+            datePickerState.input = null;
+        }
+
+        document.addEventListener("click", (e) => {
+            if (!datePickerEl || datePickerEl.style.display !== "block") return;
+            if (datePickerEl.contains(e.target)) return;
+            if (e.target.classList?.contains("date-input")) return;
+            closeDatePicker();
+        });
+
+        document.addEventListener("click", (e) => {
+            if (!e.target.classList?.contains("date-input")) return;
+            openDatePicker(e.target);
+        });
+
+        async function saveAdminRow(row) {
+            const token = localStorage.getItem("token");
+            if (!token || !row || !isAdmin) return;
+            const id = row.dataset.id;
+            const status = row.querySelector(".admin-save-status");
+            if (status) status.textContent = "Saving...";
+            const original = row.dataset.original ? JSON.parse(row.dataset.original) : {};
+            const botEl = row.querySelector(".editBot");
+            const adminEl = row.querySelector(".editAdmin");
+            const passwordEl = row.querySelector(".editPassword");
+            const createdEl = row.querySelector(".editCreated");
+            const botUciEl = row.querySelector(".editBotUci");
+            const botMoveEl = row.querySelector(".editBotMove");
+
+            const botUciValue = botUciEl ? parseInt(botUciEl.value, 10) : NaN;
+            const botMoveValue = botMoveEl ? parseInt(botMoveEl.value, 10) : NaN;
+            const createdValue = createdEl && createdEl.value ? parseDateInput(createdEl.value) : NaN;
+
+            const payload = {
+                username: row.querySelector(".editUsername").value,
+                bio: row.querySelector(".editBio").value,
+                elo: parseInt(row.querySelector(".editElo").value, 10),
+                locked: row.querySelector(".editLocked").checked,
+                is_bot: botEl ? botEl.checked : false,
+                is_admin: adminEl ? adminEl.checked : false,
+            };
+            if (botUciEl) payload.bot_uci_elo = Number.isFinite(botUciValue) ? botUciValue : (original.bot_uci_elo || 0);
+            if (botMoveEl) payload.bot_movetime = Number.isFinite(botMoveValue) ? botMoveValue : (original.bot_movetime || 0);
+            if (createdEl) payload.created_at = Number.isFinite(createdValue) ? createdValue : parseDateInput(original.created_at || "");
+            if (passwordEl && passwordEl.value) {
+                payload.password = passwordEl.value;
+            }
+
+            try {
+                console.log("Admin save request:", { id, payload });
+                const res = await fetch(`${API_BASE}/api/admin/users/${id}`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
+                    body: JSON.stringify(payload)
+                });
+                if (!res.ok) {
+                    const errText = await res.text();
+                    console.error("Admin save failed:", { id, status: res.status, body: errText, payload });
+                    throw new Error(errText);
+                }
+                const data = await res.json().catch(() => ({}));
+                console.log("Admin save response:", { id, data });
+                const saved = {
+                    username: data.username || payload.username,
+                    bio: data.bio ?? payload.bio,
+                    elo: Number.isFinite(Number(data.elo)) ? Number(data.elo) : payload.elo,
+                    locked: data.locked ? 1 : 0,
+                    is_bot: data.is_bot ? 1 : 0,
+                    is_admin: data.is_admin ? 1 : 0,
+                    bot_uci_elo: Number.isFinite(Number(data.bot_uci_elo)) ? Number(data.bot_uci_elo) : (payload.bot_uci_elo || 0),
+                    bot_movetime: Number.isFinite(Number(data.bot_movetime)) ? Number(data.bot_movetime) : (payload.bot_movetime || 0),
+                    created_at: Number.isFinite(Number(data.created_at)) ? Number(data.created_at) : payload.created_at,
+                };
+                if (status) status.textContent = "Saved";
+                if (passwordEl) passwordEl.value = "";
+                if (createdEl && saved.created_at) {
+                    createdEl.value = formatDateInput(saved.created_at);
+                }
+                if (botUciEl) botUciEl.value = String(saved.bot_uci_elo || 0);
+                if (botMoveEl) botMoveEl.value = String(saved.bot_movetime || 0);
+                const usernameEl = row.querySelector(".editUsername");
+                const bioEl = row.querySelector(".editBio");
+                const eloEl = row.querySelector(".editElo");
+                const lockedEl = row.querySelector(".editLocked");
+                if (usernameEl) usernameEl.value = saved.username;
+                if (bioEl) bioEl.value = saved.bio || "";
+                if (eloEl) eloEl.value = String(saved.elo);
+                if (lockedEl) lockedEl.checked = !!saved.locked;
+                if (botEl) botEl.checked = !!saved.is_bot;
+                if (adminEl) adminEl.checked = !!saved.is_admin;
+                const idx = adminRows.findIndex((u) => String(u.id) === String(id));
+                if (idx !== -1) {
+                    adminRows[idx] = {
+                        ...adminRows[idx],
+                        username: saved.username,
+                        bio: saved.bio,
+                        elo: saved.elo,
+                        locked: saved.locked ? 1 : 0,
+                        is_bot: saved.is_bot ? 1 : 0,
+                        is_admin: saved.is_admin ? 1 : 0,
+                        bot_uci_elo: Number(saved.bot_uci_elo) || 0,
+                        bot_movetime: Number(saved.bot_movetime) || 0,
+                        created_at: saved.created_at || adminRows[idx].created_at,
+                    };
+                }
+                row.dataset.original = JSON.stringify({
+                    username: saved.username,
+                    bio: saved.bio,
+                    elo: saved.elo,
+                    locked: !!saved.locked,
+                    is_bot: !!saved.is_bot,
+                    is_admin: !!saved.is_admin,
+                    bot_uci_elo: saved.bot_uci_elo || 0,
+                    bot_movetime: saved.bot_movetime || 0,
+                    created_at: createdEl && createdEl.value ? createdEl.value : "",
+                });
+                row.classList.remove("pending-save");
+                fetchLeaderboard();
+                return true;
+            } catch (err) {
+                console.error("Admin save failed:", { id, error: err });
+                if (status) status.textContent = "Error";
+                return false;
+            }
+        }
+
+        document.addEventListener("input", (e) => {
+            if (
+                e.target.classList.contains("editUsername") ||
+                e.target.classList.contains("editBio") ||
+                e.target.classList.contains("editElo") ||
+                e.target.classList.contains("editBotUci") ||
+                e.target.classList.contains("editBotMove") ||
+                e.target.classList.contains("editPassword") ||
+                e.target.classList.contains("editCreated")
+            ) {
+                const row = e.target.closest("tr");
+                if (row) {
+                    row.classList.add("pending-save");
+                    const status = row.querySelector(".admin-save-status");
+                    if (status) status.textContent = "Pending";
+                }
+            }
+        });
+
+        document.addEventListener("change", (e) => {
+            if (
+                e.target.classList.contains("editUsername") ||
+                e.target.classList.contains("editBio") ||
+                e.target.classList.contains("editElo") ||
+                e.target.classList.contains("editBotUci") ||
+                e.target.classList.contains("editBotMove") ||
+                e.target.classList.contains("editPassword") ||
+                e.target.classList.contains("editCreated") ||
+                e.target.classList.contains("editLocked") ||
+                e.target.classList.contains("editBot") ||
+                e.target.classList.contains("editAdmin")
+            ) {
+                const row = e.target.closest("tr");
+                if (row) {
+                    row.classList.add("pending-save");
+                    const status = row.querySelector(".admin-save-status");
+                    if (status) status.textContent = "Pending";
+                }
+            }
+        });
+
+const WAITING_PLAYER = { username: "Waiting...", elo: 0, is_bot: false };
+
+function normalizePlayer(player) {
+    if (player && typeof player === "object") return player;
+    return WAITING_PLAYER;
+}
+
 function createPlayerHtml(player, color) {
-    const isWhite = color === 'white';
-    const name = player.username || 'Waiting...';
-    const elo = player?.elo !== undefined ? `ELO ${player.elo}` : '----';
-    const isBot = player?.is_bot;
+    const isWhite = color === "white";
+    const safePlayer = normalizePlayer(player);
+    const name = escapeHtml(safePlayer.username || "Waiting...");
+    const elo = Number.isFinite(safePlayer.elo) ? safePlayer.elo : 0;
+    const icon = safePlayer.is_bot ? "cpu" : "user";
 
     return `
         <div class="player-info">
             <div class="player-tag">
                 <div class="player-avatar w-10 h-10 rounded-xl ${isWhite ? 'bg-white/10' : 'bg-black/40 border border-white/10'} flex items-center justify-center">
-                    <i data-lucide="${isBot ? 'cpu' : 'user'}" class="w-5 h-5 ${isWhite ? 'text-white' : 'text-slate-400'}"></i>
+                    <i data-lucide="${icon}" class="w-5 h-5 ${isWhite ? 'text-white' : 'text-slate-400'}"></i>
                 </div>
                 <div class="flex flex-col">
                     <span class="${isWhite ? 'text-white' : 'text-slate-300'} leading-none font-bold">${name}</span>
@@ -1081,6 +3846,13 @@ function createPlayerHtml(player, color) {
     `;
 }
 
+function gameEloSum(game) {
+    const white = normalizePlayer(game?.players?.white);
+    const black = normalizePlayer(game?.players?.black);
+    const wElo = Number.isFinite(white.elo) ? white.elo : 0;
+    const bElo = Number.isFinite(black.elo) ? black.elo : 0;
+    return wElo + bElo;
+}
 
 function renderSpectate(games) {
     const grid = document.getElementById('spectate-grid');
@@ -1091,17 +3863,18 @@ function renderSpectate(games) {
         return;
     }
 
-    grid.innerHTML = games.map(game => {
-        const base = game.timeControl?.base ?? game.timeControl?.minutes ?? 0;
-        const increment = game.timeControl?.increment ?? 0;
+    const sorted = [...games].sort((a, b) => gameEloSum(b) - gameEloSum(a));
+    grid.innerHTML = sorted.map(game => {
+        const base = coalesce(game.timeControl?.base, game.timeControl?.minutes, 0);
+        const increment = coalesce(game.timeControl?.increment, 0);
 
         return `
         <div class="game-card">
-            ${createPlayerHtml(game.players.white, 'white')}
+            ${createPlayerHtml(game.players?.white, 'white')}
             <div class="flex justify-center my-4">
                 <span class="text-[9px] font-black text-slate-700 tracking-[0.2em]">VERSUS</span>
             </div>
-            ${createPlayerHtml(game.players.black, 'black')}
+            ${createPlayerHtml(game.players?.black, 'black')}
 
             <div class="action-btn-area">
                 <button class="card-action-btn btn-spectate" onclick="spectateGame('${game.id}')">
@@ -1137,9 +3910,10 @@ function renderJoinable(games) {
         return;
     }
 
-    grid.innerHTML = games.map(game => {
-        const base = game.timeControl?.base ?? game.timeControl?.minutes ?? 0;
-        const increment = game.timeControl?.increment ?? 0;
+    const sorted = [...games].sort((a, b) => gameEloSum(b) - gameEloSum(a));
+    grid.innerHTML = sorted.map(game => {
+        const base = coalesce(game.timeControl?.base, game.timeControl?.minutes, 0);
+        const increment = coalesce(game.timeControl?.increment, 0);
 
         const actionButton = game.canDelete
             ? `
@@ -1157,11 +3931,11 @@ function renderJoinable(games) {
 
         return `
         <div class="game-card">
-            ${createPlayerHtml(game.players.white, 'white')}
+            ${createPlayerHtml(game.players?.white, 'white')}
             <div class="flex justify-center my-4">
                 <span class="text-[9px] font-black text-slate-700 tracking-[0.2em]">VERSUS</span>
             </div>
-            ${createPlayerHtml(game.players.black, 'black')}
+            ${createPlayerHtml(game.players?.black, 'black')}
 
             <div class="action-btn-area">
                 ${actionButton}
@@ -1197,7 +3971,7 @@ async function deleteGame(gameId) {
     if (!confirm("Delete this game? This cannot be undone.")) return;
 
     try {
-        const res = await fetch(`${API_BASE}/api/game/${gameId}`, {
+        const res = await fetch(`${API_BASE}/api/games/${gameId}`, {
             method: "DELETE",
             headers: {
                 "Authorization": "Bearer " + localStorage.getItem("token")
@@ -1216,19 +3990,29 @@ async function deleteGame(gameId) {
 }
 
 
-function spectateGame(gameId) {
-    console.log("Spectating game:", gameId);
-
-    socket.emit("spectateGame", { gameId });
-
-    // Navigate to board later if you want
-    // window.location.href = `/game.html?id=${gameId}&mode=spectate`;
+async function spectateGame(gameId) {
+  try {
+    const res = await fetch(`${API_BASE}/api/games/${gameId}`, { headers: authHeaders() });
+    if (res.status === 401) return handleLogout();
+    if (!res.ok) throw new Error("Spectate failed");
+    const game = await res.json();
+    await openGameView(gameId, { mode: "spectate", myColor: null, initialGame: game });
+  } catch (e) {
+    alert(e.message || e);
+  }
 }
 
-function joinGame(gameId) {
-    console.log("Joining game:", gameId);
-
-    socket.emit("joinGame", { gameId });
+async function joinGame(gameId) {
+  try {
+    const res = await fetch(`${API_BASE}/api/games/${gameId}/join`, { method: "POST", headers: authHeaders() });
+    if (res.status === 401) return handleLogout();
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || "Join failed");
+    await openGameView(gameId, { mode: "play", myColor: data.color, initialGame: data.game });
+    fetchHomepage();
+  } catch (e) {
+    alert(e.message || e);
+  }
 }
 
 
@@ -1236,6 +4020,10 @@ function joinGame(gameId) {
                 if (e.target.classList.contains("deleteUser")) {
                     const token = localStorage.getItem("token");
                     const id = e.target.dataset.id;
+                    if (!token || !isAdmin) return;
+                    if (e.target?.dataset?.admin === "1") {
+                        return alert("Cannot delete admin user.");
+                    }
                     if (!confirm("Are you sure you want to delete this user?")) return;
 
                     try {
@@ -1316,7 +4104,7 @@ function joinGame(gameId) {
 
         async function createCustomGame(minutes, increment) {
             try {
-                const res = await fetch(`${API_BASE}/api/createGame`, {
+                const res = await fetch(`${API_BASE}/api/games`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -1343,6 +4131,7 @@ function joinGame(gameId) {
         window.addEventListener('resize', () => {
             updateButtonStates('spectate-scroll', 'spectate-prev', 'spectate-next');
             updateButtonStates('joinable-scroll', 'joinable-prev', 'joinable-next');
+            updateBoardSize();
         });
 
         if (localStorage.getItem('token')) {
@@ -1350,11 +4139,1001 @@ function joinGame(gameId) {
             initApp();
         }
         
+            // -------------------- GAME VIEW --------------------
+
+            function newChess() {
+            if (!window.__ChessConstructor) {
+                throw new Error("Chess.js failed to load");
+            }
+            return new window.__ChessConstructor();
+            }
+
+            let gv = {
+            gameId: null,
+            mode: "spectate", // "spectate" | "play"
+            myColor: null,    // "white" | "black"
+            playerColor: null,
+            barMap: { top: "black", bottom: "white" },
+            chess: null,
+            moves: [],
+            viewIndex: 0,
+            lastGame: null,
+            lastMoveDetail: null,
+            shouldAnimate: false,
+            animMoveDetail: null,
+            animDirection: "forward",
+            outcome: null,
+            outcomeKey: null,
+            suppressResultModal: false,
+            boardFlip: false,
+            checkSquare: null,
+            selected: null,
+            legalTo: new Set(),
+            captureTo: new Set(),
+            lastMove: null,
+
+            clock: null,
+            clockOffsetMs: 0,
+            };
+            let gvPoll = null;
+            let gvClockTimer = null;
+            let gvNotationBound = false;
+            let gvResizeObserver = null;
+
+            function updateBoardSize() {
+            const wrap = document.querySelector(".gv-board-wrap");
+            const board = document.getElementById("gv-board");
+            const left = document.querySelector(".gv-left");
+            if (!wrap || !board) return;
+            const layout = document.querySelector(".gv-layout");
+            const right = document.querySelector(".gv-right");
+            const styles = window.getComputedStyle(wrap);
+            const padX = parseFloat(styles.paddingLeft) + parseFloat(styles.paddingRight);
+            const padY = parseFloat(styles.paddingTop) + parseFloat(styles.paddingBottom);
+            const width = Math.max(0, wrap.clientWidth - padX);
+            const height = Math.max(0, wrap.clientHeight - padY);
+            const raw = Math.floor(Math.min(width, height) / 8) * 8;
+            const minSize = 350;
+            const size = Math.max(minSize, raw);
+            if (!size) return;
+            board.style.width = `${size}px`;
+            board.style.height = `${size}px`;
+            if (left) left.style.setProperty('--gv-board-size', `${size}px`);
+
+            if (layout) {
+                const layoutWidth = layout.clientWidth || 0;
+                const gap = parseFloat(window.getComputedStyle(layout).columnGap || window.getComputedStyle(layout).gap || 0);
+                const minNotation = right ? 220 : 0;
+                const needsHide = right && layoutWidth > 0 && layoutWidth < (minSize + minNotation + gap + 16);
+                layout.classList.toggle("gv-hide-right", !!needsHide);
+            }
+            }
+
+            function bindBoardResizeObserver() {
+            const wrap = document.querySelector(".gv-board-wrap");
+            const left = document.querySelector(".gv-left");
+            if (!wrap) return;
+            if (gvResizeObserver) gvResizeObserver.disconnect();
+            if (typeof ResizeObserver === "undefined") return;
+            gvResizeObserver = new ResizeObserver(() => {
+                requestAnimationFrame(updateBoardSize);
+            });
+            gvResizeObserver.observe(wrap);
+            if (left) gvResizeObserver.observe(left);
+            }
+
+            function syncGameState(game, { allowAnimate = true } = {}) {
+            const prevCount = gv.moves.length;
+            const wasAtEnd = gv.viewIndex === prevCount;
+            gv.moves = Array.isArray(game.moves) ? game.moves : [];
+            gv.viewIndex = wasAtEnd ? gv.moves.length : Math.min(gv.viewIndex, gv.moves.length);
+            gv.lastGame = game;
+            const didAdvance = gv.moves.length > prevCount;
+            gv.shouldAnimate = allowAnimate && wasAtEnd && didAdvance;
+            if (gv.shouldAnimate) {
+                gv.animDirection = "forward";
+                gv.animMoveDetail = getMoveDetailAtPly(gv.moves.length);
+            } else {
+                gv.animMoveDetail = null;
+            }
+            }
+
+            // Call this from spectateGame/joinGame
+            async function openGameView(gameId, { mode="spectate", myColor=null, initialGame=null } = {}) {
+            gv.gameId = Number(gameId);
+            gv.mode = mode;
+            gv.myColor = myColor;
+            gv.playerColor = (mode === "play" && myColor) ? myColor : null;
+            closeResultModal();
+            gv.suppressResultModal = false;
+            gv.boardFlip = gv.mode === "play" && gv.myColor === "black";
+            gv.checkSquare = null;
+
+            gv.selected = null;
+            gv.legalTo = new Set();
+            gv.captureTo = new Set();
+            gv.lastMove = null;
+
+            switchView("game");
+            bindBoardResizeObserver();
+
+            if (initialGame) {
+                gv.chess = newChess();
+                syncGameState(initialGame, { allowAnimate: false });
+                applyMovesToChess(initialGame.moves || []);
+                initClocks(initialGame);
+                renderGameView(initialGame);
+            } else {
+                await refreshGameOnce();
+            }
+
+            if (gvPoll) clearInterval(gvPoll);
+            gvPoll = setInterval(refreshGameOnce, 800);
+
+            if (!gvClockTimer) gvClockTimer = setInterval(tickClocks, 250);
+
+            lucide.createIcons();
+            }
+
+            async function leaveToHome(reason) {
+            console.log("[leaveToHome]", reason, {
+                gameId: gv?.gameId,
+                mode: gv?.mode,
+                lastResult: gv?.lastGame?.result,
+                stack: new Error().stack,
+            });
+            // Block unexpected programmatic leaves.
+            if (!reason) return;
+            if (gv.lastGame?.result && reason !== 'result-home') {
+                return;
+            }
+            const isLive = gv.lastGame?.status === "live" && !gv.lastGame?.result;
+            if (gv.mode === "play" && gv.gameId != null && isLive) {
+                const ok = await confirmAction(
+                    "Leave game?",
+                    "You will have 60 seconds to reconnect before it counts as an abandon.",
+                    "Leave",
+                    "danger"
+                );
+                if (!ok) return;
+            }
+            // best-effort: tell server you left (does not free seat)
+            if (gv.mode === "play" && gv.gameId != null) {
+                try {
+                const res = await fetch(`${API_BASE}/api/games/${gv.gameId}/leave`, {
+                    method: "POST",
+                    headers: authHeaders(),
+                });
+                if (res.status === 401) return handleLogout();
+                } catch {}
+            }
+
+            if (gvPoll) clearInterval(gvPoll);
+            gvPoll = null;
+
+            if (gvClockTimer) clearInterval(gvClockTimer);
+            gvClockTimer = null;
+
+            gv.gameId = null;
+            gv.mode = "spectate";
+            gv.myColor = null;
+            gv.playerColor = null;
+            gv.chess = null;
+            gv.moves = [];
+            gv.viewIndex = 0;
+            gv.lastGame = null;
+            gv.selected = null;
+            gv.legalTo = new Set();
+            gv.captureTo = new Set();
+            gv.lastMove = null;
+            gv.clock = null;
+            gv.clockOffsetMs = 0;
+            gv.outcome = null;
+            gv.outcomeKey = null;
+            gv.boardFlip = false;
+            gv.checkSquare = null;
+            closeResultModal();
+
+            switchView("home");
+            fetchHomepage();
+            }
+
+            async function gvJoin() {
+            if (gv.gameId == null) return;
+            try {
+                const res = await fetch(`${API_BASE}/api/games/${gv.gameId}/join`, {
+                method: "POST",
+                headers: authHeaders(),
+                });
+                if (res.status === 401) return handleLogout();
+
+                const data = await res.json().catch(() => ({}));
+                if (!res.ok) throw new Error(data.error || "Join failed");
+
+                gv.mode = "play";
+                gv.myColor = data.color;
+                gv.boardFlip = gv.myColor === "black";
+
+                gv.chess = newChess();
+                syncGameState(data.game, { allowAnimate: false });
+                applyMovesToChess(data.game.moves || []);
+                initClocks(data.game);
+                renderGameView(data.game);
+
+                fetchHomepage();
+            } catch (e) {
+                alert(e.message || e);
+            }
+            }
+
+            async function gvResign() {
+            if (gv.gameId == null || gv.mode !== "play") return;
+            const ok = await confirmAction("Resign game?", "This will count as a loss.", "Resign", "danger");
+            if (!ok) return;
+            try {
+                const res = await fetch(`${API_BASE}/api/games/${gv.gameId}/resign`, {
+                method: "POST",
+                headers: authHeaders(),
+                });
+                if (res.status === 401) return handleLogout();
+                const data = await res.json().catch(() => ({}));
+                if (!res.ok) throw new Error(data.error || "Resign failed");
+                if (data.game) {
+                gv.chess = newChess();
+                syncGameState(data.game, { allowAnimate: false });
+                applyMovesToChess(data.game.moves || []);
+                initClocks(data.game);
+                renderGameView(data.game);
+                }
+                fetchHomepage();
+            } catch (e) {
+                showInfo("Resign", e.message || String(e));
+            }
+            }
+
+            async function gvDraw() {
+            if (gv.gameId == null || gv.mode !== "play") return;
+            try {
+                const res = await fetch(`${API_BASE}/api/games/${gv.gameId}/draw`, {
+                method: "POST",
+                headers: authHeaders(),
+                });
+                if (res.status === 401) return handleLogout();
+                const data = await res.json().catch(() => ({}));
+                if (!res.ok) throw new Error(data.error || "Draw failed");
+                if (data.state === "offered") showInfo("Draw Offer", "Draw offer sent.");
+                if (data.state === "canceled") showInfo("Draw Offer", "Draw offer canceled.");
+                if (data.state === "accepted") showInfo("Draw Offer", "Draw agreed.");
+                if (data.game) {
+                gv.chess = newChess();
+                syncGameState(data.game, { allowAnimate: false });
+                applyMovesToChess(data.game.moves || []);
+                initClocks(data.game);
+                renderGameView(data.game);
+                }
+                fetchHomepage();
+            } catch (e) {
+                showInfo("Draw Offer", e.message || String(e));
+            }
+            }
+
+            async function refreshGameOnce() {
+            if (gv.gameId == null) return;
+            try {
+                const res = await fetch(`${API_BASE}/api/games/${gv.gameId}`, { headers: authHeaders() });
+                if (res.status === 401) return handleLogout();
+                if (res.status === 404) {
+                    // If the live game is gone, switch to spectating and try DB snapshot.
+                    if (gv.mode === "play") {
+                        gv.mode = "spectate";
+                        gv.myColor = null;
+                    }
+                    try {
+                        const dbRes = await fetch(`${API_BASE}/api/gamesdb/${gv.gameId}`, { headers: authHeaders() });
+                        if (dbRes.ok) {
+                            const data = await dbRes.json().catch(() => ({}));
+                            if (data?.game) {
+                                const initialGame = dbRowToInitialGame(data.game);
+                                gv.suppressResultModal = true;
+                                syncGameState(initialGame, { allowAnimate: false });
+                                gv.chess = newChess();
+                                applyMovesToChess(initialGame.moves || []);
+                                initClocks(initialGame);
+                                renderGameView(initialGame);
+                            }
+                        }
+                    } catch {}
+                    return;
+                }
+                if (!res.ok) return;
+
+                const game = await res.json();
+                const prevMovesLen = gv.moves.length;
+                const prevSelected = gv.selected;
+                const prevLegalTo = gv.legalTo;
+                const prevCaptureTo = gv.captureTo;
+
+                gv.chess = newChess();
+                syncGameState(game);
+                applyMovesToChess(game.moves || []);
+                initClocks(game);
+
+                const sameMoves = gv.moves.length === prevMovesLen;
+                const keepSelection = sameMoves && prevSelected && gv.mode === "play" && gv.myColor && game.status === "live" && !game.result;
+                if (keepSelection) {
+                    gv.selected = prevSelected;
+                    gv.legalTo = prevLegalTo;
+                    gv.captureTo = prevCaptureTo;
+                } else {
+                    gv.selected = null;
+                    gv.legalTo = new Set();
+                    gv.captureTo = new Set();
+                }
+
+                renderGameView(game);
+            } catch {}
+            }
+
+            function applyMovesToChess(moves) {
+            gv.lastMove = null;
+            gv.lastMoveDetail = null;
+            for (const m of moves) {
+                const mv = gv.chess.move(m, { sloppy: true });
+                if (!mv) break;
+                gv.lastMove = { from: mv.from, to: mv.to };
+                gv.lastMoveDetail = {
+                from: mv.from,
+                to: mv.to,
+                color: mv.color,
+                type: mv.piece ? mv.piece.toUpperCase() : ""
+                };
+            }
+            }
+
+            function initClocks(game) {
+            gv.clock = null;
+            gv.clockOffsetMs = 0;
+            if (!game?.clock) return;
+
+            const serverNow = Number(game.serverNow);
+            if (Number.isFinite(serverNow)) {
+                gv.clockOffsetMs = Date.now() - serverNow;
+            }
+
+            const safeMs = (v) => {
+                const n = Number(v);
+                return Number.isFinite(n) ? Math.max(0, n) : 0;
+            };
+
+            gv.clock = {
+                whiteMs: safeMs(game.clock.whiteMs),
+                blackMs: safeMs(game.clock.blackMs),
+                activeColor: game.clock.activeColor || null,
+                turnStartAt: Number.isFinite(Number(game.clock.turnStartAt)) ? Number(game.clock.turnStartAt) : null,
+            };
+            }
+
+            function msToClock(ms) {
+            const totalSec = Math.max(0, Math.ceil(ms / 1000));
+            const m = Math.floor(totalSec / 60);
+            const r = totalSec % 60;
+            return `${m}:${String(r).padStart(2, "0")}`;
+            }
+
+            function serverNowApprox() {
+            return Date.now() - (gv.clockOffsetMs || 0);
+            }
+
+            function computeDisplayedClocks() {
+            const baseMin = Number(coalesce(gv.lastGame?.timeControl?.base, 0));
+            const baseMs = Number.isFinite(baseMin) ? Math.max(0, baseMin * 60 * 1000) : 0;
+            let whiteMs = baseMs;
+            let blackMs = baseMs;
+            let activeColor = gv.clock?.activeColor || null;
+
+            if (gv.clock) {
+                whiteMs = gv.clock.whiteMs;
+                blackMs = gv.clock.blackMs;
+                if (activeColor && gv.clock.turnStartAt) {
+                    const elapsed = Math.max(0, serverNowApprox() - gv.clock.turnStartAt);
+                    if (activeColor === "white") whiteMs = Math.max(0, whiteMs - elapsed);
+                    if (activeColor === "black") blackMs = Math.max(0, blackMs - elapsed);
+                }
+            }
+
+            const isLive = gv.lastGame?.status === "live";
+            if (!activeColor && gv.chess && isLive) {
+                activeColor = gv.chess.turn() === "w" ? "white" : "black";
+            }
+
+            return { whiteMs, blackMs, activeColor: isLive ? activeColor : null };
+            }
+
+            function tickClocks() {
+            const bottomEl = document.getElementById("gv-whiteclock");
+            const topEl = document.getElementById("gv-blackclock");
+            if (!bottomEl || !topEl) return;
+
+            const { whiteMs, blackMs, activeColor } = computeDisplayedClocks();
+            const topColor = gv.barMap?.top || "black";
+            const bottomColor = gv.barMap?.bottom || "white";
+
+            topEl.textContent = msToClock(topColor === "white" ? whiteMs : blackMs);
+            bottomEl.textContent = msToClock(bottomColor === "white" ? whiteMs : blackMs);
+
+            topEl.classList.toggle("active", activeColor === topColor);
+            bottomEl.classList.toggle("active", activeColor === bottomColor);
+            }
+
+        function buildViewPosition() {
+            const chess = newChess();
+            let lastMove = null;
+            let lastMoveDetail = null;
+            for (let i = 0; i < gv.viewIndex; i++) {
+                const mv = chess.move(gv.moves[i], { sloppy: true });
+                if (!mv) break;
+                lastMove = { from: mv.from, to: mv.to };
+                lastMoveDetail = {
+                from: mv.from,
+                to: mv.to,
+                color: mv.color,
+                type: mv.piece ? mv.piece.toUpperCase() : ""
+                };
+            }
+            const isCheck = coalesce(chess.isCheck?.(), chess.in_check?.(), chess.inCheck?.());
+            const checkSquare = isCheck ? getKingSquare(chess, chess.turn()) : null;
+            return { chess, lastMove, lastMoveDetail, checkSquare };
+        }
+
+        function getMoveDetailAtPly(ply) {
+        if (!ply || ply < 1) return null;
+        const chess = newChess();
+        let detail = null;
+            for (let i = 0; i < ply; i++) {
+                const mv = chess.move(gv.moves[i], { sloppy: true });
+                if (!mv) break;
+                detail = {
+                from: mv.from,
+                to: mv.to,
+                color: mv.color,
+                type: mv.piece ? mv.piece.toUpperCase() : ""
+                };
+        }
+        return detail;
+        }
+
+        function getKingSquare(chess, turnColor) {
+        const board = chess.board();
+        const files = ["a","b","c","d","e","f","g","h"];
+        for (let r = 0; r < 8; r++) {
+            for (let c = 0; c < 8; c++) {
+            const piece = board[r][c];
+            if (!piece) continue;
+            if (piece.type === "k" && piece.color === turnColor) {
+                const rank = 8 - r;
+                return `${files[c]}${rank}`;
+            }
+            }
+        }
+        return null;
+        }
+
+            function setViewIndex(ply) {
+            if (!gv.lastGame) return;
+            const prevIndex = gv.viewIndex;
+            const clamped = Math.max(0, Math.min(ply, gv.moves.length));
+            gv.viewIndex = clamped;
+            if (gv.viewIndex === prevIndex) {
+                gv.shouldAnimate = false;
+                gv.animMoveDetail = null;
+            } else if (gv.viewIndex > prevIndex) {
+                gv.shouldAnimate = true;
+                gv.animDirection = "forward";
+                gv.animMoveDetail = getMoveDetailAtPly(gv.viewIndex);
+            } else {
+                gv.shouldAnimate = true;
+                gv.animDirection = "backward";
+                gv.animMoveDetail = getMoveDetailAtPly(prevIndex);
+            }
+            gv.selected = null;
+            gv.legalTo = new Set();
+            gv.captureTo = new Set();
+            renderGameView(gv.lastGame);
+            }
+
+            function flipBoard() {
+            gv.boardFlip = !gv.boardFlip;
+            renderBoardFromFen(buildViewPosition().chess.fen());
+            }
+
+            function gvStep(delta) {
+            setViewIndex(gv.viewIndex + delta);
+            }
+
+            function updateNotationNav() {
+            const firstBtn = document.getElementById("gv-first-btn");
+            const backBtn = document.getElementById("gv-back-btn");
+            const fwdBtn = document.getElementById("gv-forward-btn");
+            const lastBtn = document.getElementById("gv-last-btn");
+            if (!backBtn || !fwdBtn || !firstBtn || !lastBtn) return;
+            const atStart = gv.viewIndex <= 0;
+            const atEnd = gv.viewIndex >= gv.moves.length;
+            firstBtn.disabled = atStart;
+            backBtn.disabled = atStart;
+            fwdBtn.disabled = atEnd;
+            lastBtn.disabled = atEnd;
+            }
+
+            function bindNotationClicks() {
+            if (gvNotationBound) return;
+            const list = document.getElementById("gv-notation");
+            if (!list) return;
+            list.addEventListener("click", (e) => {
+                const target = e.target.closest("[data-ply]");
+                if (!target) return;
+                const ply = Number(target.dataset.ply);
+                if (!Number.isFinite(ply)) return;
+                setViewIndex(ply);
+            });
+            gvNotationBound = true;
+            }
+
+            function canUserPlayNow() {
+            if (gv.mode !== "play") return false;
+            if (!gv.myColor) return false;
+            if (gv.lastGame?.status !== "live") return false;
+            if (gv.lastGame?.result) return false;
+            if (gv.viewIndex !== gv.moves.length) return false;
+            const turn = gv.chess.turn() === "w" ? "white" : "black";
+            return turn === gv.myColor;
+            }
+
+            function renderGameView(game) {
+            const base = coalesce(game.timeControl?.base, 0);
+            const increment = coalesce(game.timeControl?.increment, 0);
+            const result = game.result || null;
+            const isLive = game.status === "live" && !result;
+            document.getElementById("gv-title").innerText = `Game #${game.id}`;
+            document.getElementById("gv-subtitle").innerText =
+                `Status: ${game.status} - Time: ${base}+${increment}`;
+
+            // top/bottom bars follow board orientation
+            const bottomColor = gv.boardFlip ? "black" : "white";
+            const topColor = gv.boardFlip ? "white" : "black";
+            gv.barMap = { top: topColor, bottom: bottomColor };
+            renderPlayerBarAt("top", game.players?.[topColor], topColor);
+            renderPlayerBarAt("bottom", game.players?.[bottomColor], bottomColor);
+
+            // join/leave buttons
+            const joinBtn = document.getElementById("gv-join-btn");
+            const leaveBtn = document.getElementById("gv-leave-btn");
+            const drawBtn = document.getElementById("gv-draw-btn");
+            const resignBtn = document.getElementById("gv-resign-btn");
+
+            if (gv.mode === "play" && gv.myColor) {
+                joinBtn.hidden = true;
+                leaveBtn.hidden = false;
+                leaveBtn.innerText = `Leave (${gv.myColor})`;
+            } else {
+                joinBtn.hidden = false;
+                leaveBtn.hidden = true;
+                joinBtn.innerText = "Join";
+            }
+
+            const canAct = gv.mode === "play" && gv.myColor && isLive;
+            if (drawBtn) {
+                drawBtn.hidden = !canAct;
+                if (canAct) {
+                    if (game.drawOffer && game.drawOffer !== gv.myColor) drawBtn.innerText = "Accept Draw";
+                    else if (game.drawOffer === gv.myColor) drawBtn.innerText = "Cancel Draw";
+                    else drawBtn.innerText = "Offer Draw";
+                }
+            }
+            if (resignBtn) resignBtn.hidden = !canAct;
+
+            const turn = gv.chess.turn() === "w" ? "white" : "black";
+            const reasonLabel = (r) => {
+                const map = {
+                    checkmate: "by checkmate",
+                    timeout: "on time",
+                    resign: "by resignation",
+                    abandon: "by abandon",
+                    draw: "by draw",
+                    draw_agreed: "by agreement",
+                };
+                return map[r] || r || "";
+            };
+
+            let rightHint = canUserPlayNow() ? "You can move" : (gv.mode === "spectate" ? "Spectating" : "Not your turn");
+            if (game.drawOffer && isLive) {
+                if (gv.myColor) {
+                    rightHint = game.drawOffer === gv.myColor ? "Draw offer sent" : "Opponent offered draw";
+                } else {
+                    rightHint = `${game.drawOffer} offered draw`;
+                }
+            }
+            if (result) {
+                if (result.winner === "draw") rightHint = `Draw ${reasonLabel(result.reason)}`.trim();
+                else rightHint = `${result.winner} won ${reasonLabel(result.reason)}`.trim();
+            }
+
+            const leftHint = result
+                ? `Result: <span style="font-weight:900; color:white">${result.winner}</span>`
+                : `Turn: <span style="font-weight:900; color:white">${turn}</span>`;
+
+            document.getElementById("gv-hint").innerHTML = `
+                <span>${leftHint}</span>
+                <span>${rightHint}</span>
+            `;
+
+            const view = buildViewPosition();
+            gv.lastMove = view.lastMove;
+            gv.lastMoveDetail = view.lastMoveDetail;
+            gv.checkSquare = view.checkSquare || null;
+            const chessView = view.chess;
+            gv.outcome = null;
+            if (result) {
+                gv.outcome = result.winner === "draw"
+                    ? { type: "draw", reason: result.reason }
+                    : { type: result.reason || "win", winner: result.winner, loser: result.loser };
+            } else {
+                const isMate = coalesce(chessView?.isCheckmate?.(), chessView?.in_checkmate?.(), chessView?.inCheckmate?.());
+                const isDraw = coalesce(chessView?.isDraw?.(), chessView?.in_draw?.(), chessView?.inDraw?.(), chessView?.isStalemate?.(), chessView?.in_stalemate?.());
+                if (isMate) {
+                    const loser = chessView.turn() === "w" ? "white" : "black";
+                    const winner = loser === "white" ? "black" : "white";
+                    gv.outcome = { type: "mate", winner, loser };
+                } else if (isDraw) {
+                    gv.outcome = { type: "draw" };
+                }
+            }
+            const outcomeKey = result
+                ? `${game.id}:${result.endedAt || 0}:${result.reason || ""}`
+                : (gv.outcome ? `${game.id}:${gv.moves.length}:${gv.outcome.type}` : null);
+            if (gv.outcome && gv.outcomeKey !== outcomeKey) {
+                let resultText = "Draw";
+                if (result && result.winner && result.winner !== "draw") {
+                    resultText = gv.myColor
+                        ? (result.winner === gv.myColor ? "Won" : "Lost")
+                        : `${result.winner} won`;
+                } else if (gv.outcome.type === "mate") {
+                    if (gv.myColor) {
+                        resultText = gv.outcome.winner === gv.myColor ? "Won" : "Lost";
+                    } else {
+                        resultText = "Won";
+                    }
+                }
+                if (gv.suppressResultModal) {
+                    gv.suppressResultModal = false;
+                } else {
+                    if (gv.mode === "play") {
+                        // Game is over; stop allowing moves, but keep viewing as spectator.
+                        gv.mode = "spectate";
+                        gv.myColor = null;
+                    }
+                    showResultModal(resultText);
+                }
+                gv.outcomeKey = outcomeKey;
+            }
+            updateBoardSize();
+            renderBoardFromFen(view.chess.fen());
+            renderNotation(gv.moves);
+            updateNotationNav();
+            bindNotationClicks();
+
+            const backBtn = document.getElementById("gv-back-btn");
+            const fwdBtn = document.getElementById("gv-forward-btn");
+            const firstBtn = document.getElementById("gv-first-btn");
+            const lastBtn = document.getElementById("gv-last-btn");
+            if (backBtn) backBtn.onclick = () => gvStep(-1);
+            if (fwdBtn) fwdBtn.onclick = () => gvStep(1);
+            if (firstBtn) firstBtn.onclick = () => setViewIndex(0);
+            if (lastBtn) lastBtn.onclick = () => setViewIndex(gv.moves.length);
+            tickClocks();
+
+            lucide.createIcons();
+            }
+
+            function renderPlayerBarAt(position, player, color) {
+            const infoEl = document.getElementById(position === "bottom" ? "gv-whiteinfo" : "gv-blackinfo");
+            if (!infoEl) return;
+
+            const safePlayer = normalizePlayer(player);
+            const name = escapeHtml(safePlayer.username || "Waiting...");
+            const elo = Number.isFinite(safePlayer.elo) ? safePlayer.elo : 0;
+            const icon = safePlayer.is_bot ? "cpu" : "user";
+
+            infoEl.innerHTML = `
+                <div class="gv-avatar"><i data-lucide="${icon}" class="w-5 h-5"></i></div>
+                <div style="min-width:0;">
+                <div class="gv-name">${name}<span class="gv-elo">(${elo})</span></div>
+                </div>
+            `;
+            const barEl = document.getElementById(position === "bottom" ? "gv-whitebar" : "gv-blackbar");
+            if (barEl) barEl.dataset.playerColor = color || "";
+            }
+
+            function renderNotation(moves) {
+            const el = document.getElementById("gv-notation");
+            const rows = [];
+            for (let i = 0; i < moves.length; i += 2) {
+                const no = (i / 2) + 1;
+                const w = coalesce(moves[i], "");
+                const b = coalesce(moves[i + 1], "");
+                const wPly = i + 1;
+                const bPly = i + 2;
+                const wClass = wPly === gv.viewIndex ? "active" : "";
+                const bClass = bPly === gv.viewIndex ? "active" : "";
+                rows.push(`
+                <div class="gv-move-row">
+                    <div class="gv-move-no">${no}</div>
+                    <div class="gv-move ${w ? "" : "muted"}">
+                        ${w ? `<button type="button" class="gv-move-btn ${wClass}" data-ply="${wPly}">${w}</button>` : "..."}
+                    </div>
+                    <div class="gv-move ${b ? "" : "muted"}">
+                        ${b ? `<button type="button" class="gv-move-btn ${bClass}" data-ply="${bPly}">${b}</button>` : "..."}
+                    </div>
+                </div>
+                `);
+            }
+            el.innerHTML = rows.length ? rows.join("") : `<div style="color:#64748b; padding:10px;">No moves yet</div>`;
+            }
+
+            function renderBoardFromFen(fen) {
+            const boardEl = document.getElementById("gv-board");
+            if (!boardEl) return;
+
+            const [placement] = fen.split(" ");
+            const ranks = placement.split("/");
+            const files = ["a","b","c","d","e","f","g","h"];
+            const filesRev = [...files].reverse();
+            const flip = !!gv.boardFlip;
+
+            const map = new Map();
+            for (let r = 0; r < 8; r++) {
+                const rank = 8 - r;
+                let fileIndex = 0;
+                for (const ch of ranks[r]) {
+                if (/\d/.test(ch)) {
+                    const empties = Number(ch);
+                    for (let k = 0; k < empties; k++) map.set(`${files[fileIndex++]}${rank}`, null);
+                } else {
+                    map.set(`${files[fileIndex++]}${rank}`, ch);
+                }
+                }
+            }
+
+            boardEl.innerHTML = "";
+            for (let r = 0; r < 8; r++) {
+                const rank = flip ? r + 1 : 8 - r;
+                const fileRow = flip ? filesRev : files;
+                for (let c = 0; c < 8; c++) {
+                const file = fileRow[c];
+                const sq = `${file}${rank}`;
+                const piece = map.get(sq);
+
+                const isDark = ((file.charCodeAt(0) - 97) + rank) % 2 === 0;
+                const classes = ["gv-square", isDark ? "gv-dark" : "gv-light"];
+                const isLegal = gv.legalTo.has(sq);
+                const isCapture = gv.captureTo.has(sq);
+
+                if (gv.lastMove && (sq === gv.lastMove.from || sq === gv.lastMove.to)) classes.push("gv-prev");
+                if (gv.selected === sq) classes.push("gv-select");
+                if (gv.checkSquare === sq) classes.push("gv-check");
+                if (isLegal) classes.push("gv-legal");
+                if (isCapture) classes.push("gv-capture");
+
+                const div = document.createElement("div");
+                div.className = classes.join(" ");
+                div.dataset.square = sq;
+
+                const bottomRank = flip ? 8 : 1;
+                const leftFile = flip ? "h" : "a";
+                if (rank === bottomRank) {
+                const f = document.createElement("div");
+                f.className = "gv-coord-file";
+                f.textContent = file;
+                div.appendChild(f);
+                }
+                if (file === leftFile) {
+                const rk = document.createElement("div");
+                rk.className = "gv-coord-rank";
+                rk.textContent = String(rank);
+                div.appendChild(rk);
+                }
+
+                if (isLegal) {
+                const target = document.createElement("div");
+                target.className = "gv-target";
+                const marker = document.createElement("div");
+                marker.className = isCapture ? "gv-target-ring" : "gv-target-dot";
+                target.appendChild(marker);
+                div.appendChild(target);
+                }
+
+                if (piece) {
+                const color = piece === piece.toUpperCase() ? "w" : "b";
+                const type = piece.toUpperCase();
+                const img = document.createElement("img");
+                img.src = `assets/pieces/${color}${type}.svg`;
+                img.alt = `${color}${type}`;
+                const wrap = document.createElement("div");
+                wrap.className = "gv-piece";
+                wrap.appendChild(img);
+                div.appendChild(wrap);
+                }
+
+                div.addEventListener("click", () => onSquareClick(sq));
+                boardEl.appendChild(div);
+                }
+            }
+            animateLastMove(boardEl);
+            }
+
+            function animateLastMove(boardEl) {
+            const detail = gv.animMoveDetail || gv.lastMoveDetail;
+            if (!gv.shouldAnimate || !detail) return;
+            const { from, to, color, type } = detail;
+            if (!from || !to || !color || !type) {
+                gv.shouldAnimate = false;
+                return;
+            }
+
+            const startSq = gv.animDirection === "backward" ? to : from;
+            const endSq = gv.animDirection === "backward" ? from : to;
+
+            const fromEl = boardEl.querySelector(`[data-square="${startSq}"]`);
+            const toEl = boardEl.querySelector(`[data-square="${endSq}"]`);
+            if (!fromEl || !toEl) {
+                gv.shouldAnimate = false;
+                return;
+            }
+
+            const size = boardEl.clientWidth;
+            const cell = size / 8;
+            const fileIndex = (sq) => {
+                const idx = sq.charCodeAt(0) - 97;
+                return gv.boardFlip ? 7 - idx : idx;
+            };
+            const rankIndex = (sq) => {
+                const rank = Number(sq[1]);
+                return gv.boardFlip ? (rank - 1) : (8 - rank);
+            };
+            const fromLeft = fileIndex(startSq) * cell;
+            const fromTop = rankIndex(startSq) * cell;
+            const toLeft = fileIndex(endSq) * cell;
+            const toTop = rankIndex(endSq) * cell;
+            const dx = toLeft - fromLeft;
+            const dy = toTop - fromTop;
+
+            const anim = document.createElement("div");
+            anim.className = "gv-anim-piece";
+            anim.style.left = `${fromLeft}px`;
+            anim.style.top = `${fromTop}px`;
+            anim.style.width = `${cell}px`;
+            anim.style.height = `${cell}px`;
+
+            const img = document.createElement("img");
+            img.src = `assets/pieces/${color}${type}.svg`;
+            img.alt = `${color}${type}`;
+            anim.appendChild(img);
+            boardEl.appendChild(anim);
+
+            const toPiece = toEl.querySelector(".gv-piece");
+            if (toPiece) toPiece.classList.add("gv-piece-hide");
+
+            requestAnimationFrame(() => {
+                anim.style.transform = `translate3d(${dx}px, ${dy}px, 0)`;
+            });
+
+            const cleanup = () => {
+                if (toPiece) toPiece.classList.remove("gv-piece-hide");
+                anim.remove();
+            };
+            anim.addEventListener("transitionend", cleanup, { once: true });
+            setTimeout(() => {
+                if (anim.isConnected) cleanup();
+            }, 240);
+
+            gv.shouldAnimate = false;
+            gv.animMoveDetail = null;
+            }
+
+            function onSquareClick(sq) {
+            if (!canUserPlayNow()) return;
+
+            const piece = gv.chess.get(sq);
+
+            if (!gv.selected) {
+                const myTurnColor = gv.chess.turn();
+                if (!piece) return;
+                if (piece.color !== myTurnColor) return;
+                gv.selected = sq;
+                computeLegalTargets(sq);
+                renderBoardFromFen(gv.chess.fen());
+                return;
+            }
+
+            if (gv.selected === sq) {
+                gv.selected = null;
+                gv.legalTo = new Set();
+                gv.captureTo = new Set();
+                renderBoardFromFen(gv.chess.fen());
+                return;
+            }
+
+            if (gv.legalTo.has(sq)) return submitMove(gv.selected, sq);
+
+            const myTurnColor = gv.chess.turn();
+            if (piece && piece.color === myTurnColor) {
+                gv.selected = sq;
+                computeLegalTargets(sq);
+                renderBoardFromFen(gv.chess.fen());
+            }
+            }
+
+            function computeLegalTargets(fromSq) {
+            gv.legalTo = new Set();
+            gv.captureTo = new Set();
+            const moves = gv.chess.moves({ square: fromSq, verbose: true });
+            for (const m of moves) {
+                gv.legalTo.add(m.to);
+                if (m.captured) gv.captureTo.add(m.to);
+            }
+            }
+
+            // Requires backend POST /api/games/:id/move
+            async function submitMove(from, to) {
+            if (gv.gameId == null) return;
+
+            let payload;
+            if (typeof from === "string" && typeof to !== "string") {
+                payload = { move: from };
+            } else {
+                let promotion;
+                const p = gv.chess.get(from);
+                if (p && p.type === "p") {
+                    const rankTo = Number(to[1]);
+                    if ((p.color === "w" && rankTo === 8) || (p.color === "b" && rankTo === 1)) promotion = "q";
+                }
+                const uci = `${from}${to}${promotion ? promotion : ""}`;
+                payload = { move: uci };
+            }
+
+            try {
+                const res = await fetch(`${API_BASE}/api/games/${gv.gameId}/move`, {
+                method: "POST",
+                headers: authHeaders(),
+                body: JSON.stringify(payload),
+                });
+                if (res.status === 401) return handleLogout();
+                const data = await res.json().catch(() => ({}));
+                if (!res.ok) throw new Error(data.error || "Move rejected");
+
+                gv.selected = null;
+                gv.legalTo = new Set();
+                gv.captureTo = new Set();
+
+                if (data.game) {
+                gv.chess = newChess();
+                syncGameState(data.game);
+                applyMovesToChess(data.game.moves || []);
+                renderGameView(data.game);
+                }
+            } catch (e) {
+                alert(e.message || e);
+            }
+            }
+
+
+
+
         setInterval(() => {
-            if(localStorage.getItem('token')) {
+            if (localStorage.getItem('token')) {
                 fetchHomepage();
                 fetchLeaderboard();
-                if(localStorage.getItem("username") === "Admin") fetchAdminUsers();
+                const dbView = document.getElementById("view-database");
+                if (dbView && !dbView.hidden) fetchGamesDb();
             }
         }, 10000);
     </script>
